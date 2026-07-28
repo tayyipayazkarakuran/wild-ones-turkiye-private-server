@@ -64,7 +64,7 @@ services:
       PORT: 3000
       GAME_HOST: game
       GAME_PORT: 8000
-      ASSET_VERSION: ${ASSET_VERSION:-v26}
+      ASSET_VERSION: v26
       SOCKET_TRACE: ${SOCKET_TRACE:-false}
     depends_on:
       game:

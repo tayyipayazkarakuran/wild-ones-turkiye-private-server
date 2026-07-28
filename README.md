@@ -128,6 +128,8 @@ WEB_PORT=8085
 ```
 
 Do not expose MongoDB or the game TCP service directly.
+The client runtime is intentionally pinned to the verified v26 SWF; older
+`ASSET_VERSION` values from existing environment files are ignored.
 
 ### Windows helper
 
