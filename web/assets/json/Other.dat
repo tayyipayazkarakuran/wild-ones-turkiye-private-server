@@ -1,0 +1,87 @@
+{
+"version":"v0.635",
+
+"assetFiles":[
+	"weaponicons.swf?v=000",
+	"weaponicons1.swf?v=008",
+	"weaponicons2.swf?v=008",
+	"weaponicons3.swf?v=008",
+	"avatar4.swf?v=[cdnVersion]",
+	"foodicons.swf?v=[cdnVersion]",
+	"avatars.swf?v=000",
+	"avatars1.swf?v=001",
+	"avatar3.swf?v=001",
+	"sounds.swf?v=000",
+	"sounds1.swf?v=[cdnVersion]",
+	"accessories.swf?v=[cdnVersion]",
+	"accessories1.swf?v=002",
+	"accessories2.swf?v=007",
+	"weaponicons5.swf?v=008"
+],
+
+"assetFiles2":[
+	"ambient.swf?v=000",
+	"ambient1.swf?v=000",
+	"weaponicons4.swf?v=008"
+],
+
+"dailyNeighborBonus":{
+	"resetTime":24,
+	"bonus":[
+		{"p":0.50, "reward":{"gold":10,"xp":10}},
+		{"p":0.50, "reward":{"grenade":1}}
+	]
+},
+
+"dailyFriendBonus":{
+    "resetTime":24,
+    "bonus":[
+        {"p":1.0, "reward":{"gold":2,"xp":2}}
+    ]
+},
+
+"dailyReturnBonus":{
+	"bonus":[
+		{"text":"25 gold and 25 xp", "reward":{"gold":25,"xp":25}},
+		{"text":"100 gold and 100 xp", "reward":{"gold":100,"xp":100}},
+		{"text":"a free prize wheel spin", "reward":{"prize_wheel":1}},
+		{"text":"a free laser cannon", "reward":{"lasercannon":1}}
+	]
+},
+
+"chanceWheel":{
+	"cost":2,
+	"currency":"treats",
+	"prize":[
+		{"p":0.09, "slots":1, "reward":{"teleport":4} },
+		{"p":0.25, "slots":3, "reward":{"grappling":2} },
+		{"p":0.09, "slots":1, "reward":{"grenade":2} },
+		{"p":0.01, "slots":1, "reward":{"grenade":50}, "special":"true"},
+		{"p":0.01, "slots":1, "reward":{"flamethrower":3} },
+		{"p":0.01, "slots":1, "reward":{"goo":3} },
+		{"p":0.1, "slots":2, "reward":{"mirv":1} },
+		{"p":0.05, "slots":1, "reward":{"drill":1} },
+		{"p":0.05, "slots":1, "reward":{"lasercannon":1}, "special":"true"}
+	]
+},
+
+"comboTypes":[
+	{"type":"comboA","currency":"gold","price":1000,"rewards":{"common":10,"uncommon":0,"premium":0,"rare":0}},
+	{"type":"comboB","currency":"treats","price":33,"featuredEndDate":"06/28/2011","rewards":{"common":2,"uncommon":4,"premium":2,"rare":1}},
+	{"type":"comboC","currency":"treats","price":66,"rewards":{"common":4,"uncommon":8,"premium":4,"rare":2}},
+	{"type":"comboD","memberCurrency":"treats","memberPrice":66,"currency":"treats","price":0,"rewards":{"common":4,"uncommon":4,"premium":6,"rare":3}},
+	{"type":"halloween","memberCurrency":"treats","memberPrice":10,"currency":"treats","price":20,"rewards":{"halloweenWeapons":6,"halloweenAccessories":1}}
+],
+
+"comboRewards":{
+	"common":[{"grenade":18},{"grenadeEL1":9},{"teleport":6},{"clustermissile":3},{"clustergrenade":3},{"jumbomissile":3},{"zoobomb":18},{"goopuddle":6},{"babybeehive":6},{"dynamite":3},{"babyflame":3},{"grappling":3},{"anvil":3},{"ninjastar":3},{"drill":3},{"drillcluster":3},{"gammabeam":3}],
+	"uncommon":[{"multishot":5},{"babynuke":3},{"mirv":5},{"tornadogrenade":5},{"antigravmissile":5},{"quintuplets":5},{"flamethrower":7},{"rubbergrenades":5},{"mines":5},{"goo":5},{"rubbermirv":5},{"kame":5}],
+	"premium":[{"nuke":16},{"tornadocluster":27},{"starfield":36},{"flame":45},{"megamirv":36},{"napalm":23},{"gammaray":33},{"meganinjastar":45},{"queenbee":23},{"goolake":27},{"bakersdozen":36},{"meganuke":15},{"airstrike":20},{"rubbergrenadestrike":23},{"minestrike":23},{"grenadeshower":23},{"goostrike":23},{"kissgoodby":27},{"gameovernuke":3},{"gammastar":3},{"drillstrike":35},{"blizzard":35},{"cow":41}],
+	"rare":[{"invisibility":20},{"freeze":20},{"chainsaw":10},{"minigun":20},{"dualpistol":20},{"earthquake":20},{"mallet":20},{"spider":20}],
+	"halloweenWeapons":[{"pumpkin":20},{"candy_corn_mirv":20},{"candy_mines":20},{"trick_bag":20},{"candy_grenade":20},{"broom":20}],
+	"halloweenAccessories":[{"head_samurai":1},{"head_glasses6":1},{"top_chieftain":1},{"head_chieftain":1}]
+},
+
+"fbCreditsPerTreat":3
+
+}

@@ -1,0 +1,55 @@
+{
+  "collectionKeys": [
+    "chanceCollection1",
+    "chanceCollection2",
+    "chanceCollection3"
+  ],
+  "chanceCollection1": {
+    "cost": 9,
+    "alt": "poison cloud",
+    "currency": "treats",
+    "prize": [
+      { "p": 1, "reward": { "MilitaryHat": 1 }, "altreward": { "harpoon": 20 } },
+      { "p": 1, "reward": { "MilitaryGoggles": 1 }, "altreward": { "spider": 40 } },
+      { "p": 1, "reward": { "Militaryshirt": 1 }, "altreward": { "cow": 20 } },
+      { "p": 1, "reward": { "top_suit_black": 1 }, "altreward": { "megamirv": 20 } },
+      { "p": 1, "reward": { "head_suit_tophat": 1 }, "altreward": { "kissgoodby": 20 } },
+      { "p": 1, "reward": { "head_monocle": 1 }, "altreward": { "queenbee": 20 } },
+      { "p": 1, "reward": { "top_lumberjack": 1 }, "altreward": { "meganuke": 20 } },
+      { "p": 1, "reward": { "head_lumberjack_hat": 1 }, "altreward": { "minestrike": 20 } }
+    ],
+    "finalPrize": { "acidcloud": 40 }
+  },
+  "chanceCollection2": {
+    "cost": 9,
+    "alt": "platypus",
+    "currency": "treats",
+    "prize": [
+      { "p": 1, "reward": { "SpaniardHat": 1 }, "altreward": { "harpoon": 20 } },
+      { "p": 1, "reward": { "SpaniardBelt": 1 }, "altreward": { "spider": 40 } },
+      { "p": 1, "reward": { "SpaniardShirt": 1 }, "altreward": { "cow": 20 } },
+      { "p": 1, "reward": { "CastroBelt": 1 }, "altreward": { "megamirv": 20 } },
+      { "p": 1, "reward": { "CastroHat": 1 }, "altreward": { "kissgoodby": 20 } },
+      { "p": 1, "reward": { "CastroShoes": 1 }, "altreward": { "queenbee": 20 } },
+      { "p": 1, "reward": { "CastroShirt": 1 }, "altreward": { "meganuke": 20 } },
+      { "p": 1, "reward": { "head_mohawk_red": 1 }, "altreward": { "minestrike": 20 } }
+    ],
+    "finalPrize": { "platypus": 1 }
+  },
+  "chanceCollection3": {
+    "cost": 9,
+    "alt": "dragon",
+    "currency": "treats",
+    "prize": [
+      { "p": 1, "reward": { "DragonShirt": 1 }, "altreward": { "harpoon": 20 } },
+      { "p": 1, "reward": { "DragonClaws": 1 }, "altreward": { "spider": 40 } },
+      { "p": 1, "reward": { "GoatHorn": 1 }, "altreward": { "cow": 20 } },
+      { "p": 1, "reward": { "KnightShirt": 1 }, "altreward": { "megamirv": 20 } },
+      { "p": 1, "reward": { "KnightBelt": 1 }, "altreward": { "kissgoodby": 20 } },
+      { "p": 1, "reward": { "KnightHat": 1 }, "altreward": { "queenbee": 20 } },
+      { "p": 1, "reward": { "top_wizard": 1 }, "altreward": { "meganuke": 20 } },
+      { "p": 1, "reward": { "head_wizard": 1 }, "altreward": { "minestrike": 20 } }
+    ],
+    "finalPrize": { "dragon": 1 }
+  }
+}

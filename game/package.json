@@ -1,0 +1,15 @@
+{
+  "name": "wild-ones-turkiye-game-server",
+  "version": "1.0.0",
+  "description": "Wild Ones: TURKIYE game server (internal TCP port 8000)",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "jimp": "^1.6.0",
+    "mongodb": "^7.5.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#141a36">
+  <title>Wild Ones: TURKIYE</title>
+  <link rel="stylesheet" href="/theme/private-wars.css">
+</head>
+<body class="auth-page">
+  <main class="auth-scene">
+    <section class="brand-panel" aria-labelledby="welcome-title">
+      <img class="brand-mark" src="/theme/wild-ones-turkiye-logo.png" alt="Wild Ones: TURKIYE">
+      <p class="brand-kicker">Private server</p>
+      <h1 class="brand-title" id="welcome-title">Enter the arena. <span>Keep your squad alive.</span></h1>
+      <p class="brand-copy">Classic Wild Ones battles are back. Create a room, play with friends, or let matchmaking fill open slots with bots.</p>
+      <div class="status-line"><i class="status-dot" aria-hidden="true"></i> Server online</div>
+    </section>
+    <section class="ticket" aria-labelledby="account-title">
+      <h1 id="account-title">Battle ticket</h1>
+      <p>Sign in with your username or create a new fighter.</p>
+      <div class="auth-forms">
+        <form class="auth-card" action="/login" method="post">
+          <h2>Enter the game</h2>
+          <div class="field"><label for="login-name">Username</label><input id="login-name" required name="dname" minlength="3" maxlength="16" autocomplete="username" placeholder="Your fighter name"></div>
+          <div class="field"><label for="login-password">Password</label><input id="login-password" required type="password" name="password" minlength="8" maxlength="72" autocomplete="current-password" placeholder="Your password"></div>
+          <button class="action" type="submit">Join the battle</button>
+        </form>
+        <form class="auth-card" action="/register" method="post">
+          <h2>New fighter</h2>
+          <div class="field"><label for="register-name">Username</label><input id="register-name" required name="dname" minlength="3" maxlength="16" autocomplete="username" placeholder="3–16 characters"></div>
+          <div class="field"><label for="register-password">Password</label><input id="register-password" required type="password" name="password" minlength="8" maxlength="72" autocomplete="new-password" placeholder="At least 8 characters"></div>
+          <button class="action alt" type="submit">Create fighter</button>
+        </form>
+      </div>
+      <p class="form-note" id="form-note" aria-live="polite"></p>
+    </section>
+  </main>
+  <script>
+    const message = new URLSearchParams(location.search).get('message');
+    const note = document.getElementById('form-note');
+    if (message) {
+      const messages = { registered: 'Fighter created. Welcome to the arena!', invalid: 'The username or password is invalid.', duplicate: 'That username is already in use.', login: 'Incorrect username or password.', signedout: 'You have signed out securely.' };
+      note.textContent = messages[message] || 'The request could not be completed. Check your details.';
+      note.dataset.kind = ['registered', 'signedout'].includes(message) ? 'success' : 'error';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,3240 @@
+{
+  "version": 2,
+  "generatedAt": "2026-07-28T17:41:36.292Z",
+  "scannedMovies": [
+    "web/assets/weaponicons.swf",
+    "web/assets/weaponicons1.swf",
+    "web/assets/weaponicons2.swf",
+    "web/assets/weaponicons3.swf",
+    "web/assets/weaponicons4.swf",
+    "web/assets/weaponicons5.swf"
+  ],
+  "symbolCount": 882,
+  "weapons": {
+    "acidcloud": {
+      "visualType": "acidcloud",
+      "behaviorType": "mortar",
+      "effectiveType": "acidcloud",
+      "aliases": [
+        "acidcloud"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "acidcloud_icon",
+        "runtime": [
+          "acidcloud_ammo",
+          "acidcloud_gun",
+          "acidcloud_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "acornschild": {
+      "visualType": "acornschild",
+      "behaviorType": "grenade",
+      "effectiveType": "acornschild",
+      "aliases": [
+        "acornschild",
+        "accorns",
+        "accorn"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "acornschild_icon",
+        "runtime": [
+          "acornschild_ammo",
+          "acornschild_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "airstrike": {
+      "visualType": "airstrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "airstrike",
+      "aliases": [
+        "airstrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "airstrike_icon",
+        "runtime": [
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "antigravmissile": {
+      "visualType": "antigravmissile",
+      "behaviorType": "mortar",
+      "effectiveType": "antigravmissile",
+      "aliases": [
+        "antigravmissile"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "antigravmissile_icon",
+        "runtime": [
+          "antigravmissile_ammo",
+          "antigravmissile_gun",
+          "antigravmissile_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "anvil": {
+      "visualType": "anvil",
+      "behaviorType": "mortar",
+      "effectiveType": "anvil",
+      "aliases": [
+        "anvil"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "anvil_icon",
+        "runtime": [
+          "anvil_ammo",
+          "anvil_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "babybeehive": {
+      "visualType": "babybeehive",
+      "behaviorType": "flamethrower",
+      "effectiveType": "babybeehive",
+      "aliases": [
+        "babybeehive"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "babybeehive_icon",
+        "runtime": [
+          "babybeehive_ammo",
+          "babybeehive_gun",
+          "babybeehive_icon",
+          "flamethrower_weapon",
+          "flamethrower_ammo",
+          "flamethrower_gun",
+          "flamethrower_icon"
+        ]
+      }
+    },
+    "babynuke": {
+      "visualType": "babynuke",
+      "behaviorType": "mortar",
+      "effectiveType": "babynuke",
+      "aliases": [
+        "babynuke"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "babynuke_icon",
+        "runtime": [
+          "babynuke_ammo",
+          "babynuke_gun",
+          "babynuke_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "bakersdozen": {
+      "visualType": "bakersdozen",
+      "behaviorType": "mortar",
+      "effectiveType": "bakersdozen",
+      "aliases": [
+        "bakersdozen"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "bakersdozen_icon",
+        "runtime": [
+          "bakersdozen_ammo",
+          "bakersdozen_gun",
+          "bakersdozen_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "banana": {
+      "visualType": "banana",
+      "behaviorType": "grenade",
+      "effectiveType": "banana",
+      "aliases": [
+        "banana"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "banana_icon",
+        "runtime": [
+          "banana_ammo",
+          "banana_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "battle": {
+      "visualType": "battle",
+      "behaviorType": "kangaroo",
+      "effectiveType": "battle",
+      "aliases": [
+        "battle"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "battle_icon",
+        "runtime": [
+          "battle_icon",
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "batton": {
+      "visualType": "batton",
+      "behaviorType": "mallet",
+      "effectiveType": "batton",
+      "aliases": [
+        "batton"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "batton_icon",
+        "runtime": [
+          "batton_gun",
+          "batton_icon",
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "bazooka": {
+      "visualType": "bazooka",
+      "behaviorType": "mortar",
+      "effectiveType": "bazooka",
+      "aliases": [
+        "bazooka"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "bazooka_icon",
+        "runtime": [
+          "bazooka_weapon",
+          "bazooka_ammo",
+          "bazooka_gun",
+          "bazooka_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "beechild": {
+      "visualType": "beechild",
+      "behaviorType": "beechild",
+      "effectiveType": "beechild",
+      "aliases": [
+        "beechild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "beechild_ammo"
+        ]
+      }
+    },
+    "blackbeauty": {
+      "visualType": "blackbeauty",
+      "behaviorType": "mortar",
+      "effectiveType": "blackbeauty",
+      "aliases": [
+        "blackbeauty"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "blackbeauty_icon",
+        "runtime": [
+          "blackbeauty_ammo",
+          "blackbeauty_gun",
+          "blackbeauty_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "blizzard": {
+      "visualType": "blizzard",
+      "behaviorType": "airstrike",
+      "effectiveType": "blizzard",
+      "aliases": [
+        "blizzard"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "blizzard_icon",
+        "runtime": [
+          "blizzard_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "blunderbuss": {
+      "visualType": "blunderbuss",
+      "behaviorType": "shotgun",
+      "effectiveType": "blunderbuss",
+      "aliases": [
+        "blunderbuss"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "blunderbuss_icon",
+        "runtime": [
+          "blunderbuss_gun",
+          "blunderbuss_icon",
+          "shotgun_weapon",
+          "shotgun_gun",
+          "shotgun_icon"
+        ]
+      }
+    },
+    "bone": {
+      "visualType": "bone",
+      "behaviorType": "bone",
+      "effectiveType": "bone",
+      "aliases": [
+        "bone"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "bone_icon",
+        "runtime": [
+          "bone_ammo",
+          "bone_icon"
+        ]
+      }
+    },
+    "boomerang": {
+      "visualType": "boomerang",
+      "behaviorType": "mortar",
+      "effectiveType": "boomerang",
+      "aliases": [
+        "boomerang"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "boomerang_icon",
+        "runtime": [
+          "boomerang_ammo",
+          "boomerang_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "broom": {
+      "visualType": "broom",
+      "behaviorType": "mallet",
+      "effectiveType": "broom",
+      "aliases": [
+        "broom"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "broom_icon",
+        "runtime": [
+          "broom_gun",
+          "broom_icon",
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "candy_corn_mirv": {
+      "visualType": "candy_corn_mirv",
+      "behaviorType": "mirv",
+      "effectiveType": "candy_corn_mirv",
+      "aliases": [
+        "candy_corn_mirv"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "candy_corn_mirv_icon",
+        "runtime": [
+          "candy_corn_mirv_ammo",
+          "candy_corn_mirv_gun",
+          "candy_corn_mirv_icon",
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "candy_grenade": {
+      "visualType": "candy_grenade",
+      "behaviorType": "grenade",
+      "effectiveType": "candy_grenade",
+      "aliases": [
+        "candy_grenade"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "candy_grenade_icon",
+        "runtime": [
+          "candy_grenade_gun",
+          "candy_grenade_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "candy_mines": {
+      "visualType": "candy_mines",
+      "behaviorType": "mine",
+      "effectiveType": "candy_mines",
+      "aliases": [
+        "candy_mines"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "candy_mines_icon",
+        "runtime": [
+          "candy_mines_ammo",
+          "candy_mines_icon",
+          "mine_weapon",
+          "mine_ammo",
+          "mine_icon"
+        ]
+      }
+    },
+    "candycane": {
+      "visualType": "candycane",
+      "behaviorType": "mallet",
+      "effectiveType": "candycane",
+      "aliases": [
+        "candycane"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "candycane_icon",
+        "runtime": [
+          "candycane_weapon",
+          "candycane_gun",
+          "candycane_icon",
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "candymirvchild": {
+      "visualType": "candymirvchild",
+      "behaviorType": "mirvchild",
+      "effectiveType": "candymirvchild",
+      "aliases": [
+        "candymirvchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "candymirvchild_ammo",
+          "mirvchild_ammo"
+        ]
+      }
+    },
+    "chainsaw": {
+      "visualType": "chainsaw",
+      "behaviorType": "mortar",
+      "effectiveType": "chainsaw",
+      "aliases": [
+        "chainsaw"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "chainsaw_icon",
+        "runtime": [
+          "chainsaw_gun",
+          "chainsaw_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "climb": {
+      "visualType": "climb",
+      "behaviorType": "climb",
+      "effectiveType": "climb",
+      "aliases": [
+        "climb"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "climb_icon",
+        "runtime": [
+          "climb_icon"
+        ]
+      }
+    },
+    "clustergrenade": {
+      "visualType": "clustergrenade",
+      "behaviorType": "grenade",
+      "effectiveType": "clustergrenade",
+      "aliases": [
+        "clustergrenade"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "clustergrenade_icon",
+        "runtime": [
+          "clustergrenade_ammo",
+          "clustergrenade_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "clustermissile": {
+      "visualType": "clustermissile",
+      "behaviorType": "mortar",
+      "effectiveType": "clustermissile",
+      "aliases": [
+        "clustermissile"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "clustermissile_icon",
+        "runtime": [
+          "clustermissile_ammo",
+          "clustermissile_gun",
+          "clustermissile_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "coconutblast": {
+      "visualType": "coconutblast",
+      "behaviorType": "goochild",
+      "effectiveType": "coconutblast",
+      "aliases": [
+        "coconutblast"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "coconutblast_ammo",
+          "goochild_ammo"
+        ]
+      }
+    },
+    "coconutgun": {
+      "visualType": "coconutgun",
+      "behaviorType": "goo",
+      "effectiveType": "coconutgun",
+      "aliases": [
+        "coconutgun"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "coconutgun_icon",
+        "runtime": [
+          "coconutgun_ammo",
+          "coconutgun_gun",
+          "coconutgun_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "cow": {
+      "visualType": "cow",
+      "behaviorType": "anvil",
+      "effectiveType": "cow",
+      "aliases": [
+        "cow"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "cow_icon",
+        "runtime": [
+          "cow_ammo",
+          "cow_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "cranberry": {
+      "visualType": "cranberry",
+      "behaviorType": "mortar",
+      "effectiveType": "cranberry",
+      "aliases": [
+        "cranberry"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "cranberry_icon",
+        "runtime": [
+          "cranberry_ammo",
+          "cranberry_gun",
+          "cranberry_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "crate": {
+      "visualType": "crate",
+      "behaviorType": "crate",
+      "effectiveType": "crate",
+      "aliases": [
+        "crate"
+      ],
+      "runtimeSupported": false,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": []
+      }
+    },
+    "dart": {
+      "visualType": "dart",
+      "behaviorType": "mortar",
+      "effectiveType": "dart",
+      "aliases": [
+        "dart"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "dart_icon",
+        "runtime": [
+          "dart_ammo",
+          "dart_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "dig": {
+      "visualType": "dig",
+      "behaviorType": "dig",
+      "effectiveType": "dig",
+      "aliases": [
+        "dig"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "dig_icon",
+        "runtime": [
+          "dig_icon"
+        ]
+      }
+    },
+    "dinoquake": {
+      "visualType": "dinoquake",
+      "behaviorType": "earthquake",
+      "effectiveType": "dinoquake",
+      "aliases": [
+        "dinoquake"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "dinoquake_icon",
+        "runtime": [
+          "dinoquake_icon"
+        ]
+      }
+    },
+    "drill": {
+      "visualType": "drill",
+      "behaviorType": "drill",
+      "effectiveType": "drill",
+      "aliases": [
+        "drill"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "drill_icon",
+        "runtime": [
+          "drill_weapon",
+          "drill_ammo",
+          "drill_gun",
+          "drill_icon"
+        ]
+      }
+    },
+    "drillchild": {
+      "visualType": "drillchild",
+      "behaviorType": "drillchild",
+      "effectiveType": "drillchild",
+      "aliases": [
+        "drillchild"
+      ],
+      "runtimeSupported": false,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": []
+      }
+    },
+    "drillcluster": {
+      "visualType": "drillcluster",
+      "behaviorType": "drill",
+      "effectiveType": "drillcluster",
+      "aliases": [
+        "drillcluster"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "drillcluster_icon",
+        "runtime": [
+          "drillcluster_ammo",
+          "drillcluster_gun",
+          "drillcluster_icon",
+          "drill_weapon",
+          "drill_ammo",
+          "drill_gun",
+          "drill_icon"
+        ]
+      }
+    },
+    "drillstrike": {
+      "visualType": "drillstrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "drillstrike",
+      "aliases": [
+        "drillstrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "drillstrike_icon",
+        "runtime": [
+          "drillstrike_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "drowning": {
+      "visualType": "drowning",
+      "behaviorType": "drowning",
+      "effectiveType": "drowning",
+      "aliases": [
+        "drowning"
+      ],
+      "runtimeSupported": false,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": []
+      }
+    },
+    "dualpistol": {
+      "visualType": "dualpistol",
+      "behaviorType": "minigun",
+      "effectiveType": "dualpistol",
+      "aliases": [
+        "dualpistol"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "dualpistol_icon",
+        "runtime": [
+          "dualpistol_gun",
+          "dualpistol_icon",
+          "shotgun_weapon",
+          "shotgun_gun",
+          "shotgun_icon"
+        ]
+      }
+    },
+    "dynamite": {
+      "visualType": "dynamite",
+      "behaviorType": "dynamite",
+      "effectiveType": "dynamite",
+      "aliases": [
+        "dynamite"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "dynamite_icon",
+        "runtime": [
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    },
+    "earthquake": {
+      "visualType": "earthquake",
+      "behaviorType": "earthquake",
+      "effectiveType": "earthquake",
+      "aliases": [
+        "earthquake"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "earthquake_icon",
+        "runtime": [
+          "earthquake_ammo",
+          "earthquake_icon"
+        ]
+      }
+    },
+    "easterbasket": {
+      "visualType": "easterbasket",
+      "behaviorType": "mirv",
+      "effectiveType": "easterbasket",
+      "aliases": [
+        "easterbasket"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "easterbasket_icon",
+        "runtime": [
+          "easterbasket_ammo",
+          "easterbasket_icon",
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "eggsblaster": {
+      "visualType": "eggsblaster",
+      "behaviorType": "grenade",
+      "effectiveType": "eggsblaster",
+      "aliases": [
+        "eggsblaster"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "eggsblaster_icon",
+        "runtime": [
+          "eggsblaster_ammo",
+          "eggsblaster_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "filmclapperboard": {
+      "visualType": "filmclapperboard",
+      "behaviorType": "spider",
+      "effectiveType": "filmclapperboard",
+      "aliases": [
+        "filmclapperboard"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "filmclapperboard_icon",
+        "runtime": [
+          "filmclapperboard_ammo",
+          "filmclapperboard_icon",
+          "spider_weapon",
+          "spider_ammo",
+          "spider_icon"
+        ]
+      }
+    },
+    "fireball": {
+      "visualType": "fireball",
+      "behaviorType": "fireball",
+      "effectiveType": "fireball",
+      "aliases": [
+        "fireball"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "fireball_ammo"
+        ]
+      }
+    },
+    "firehose": {
+      "visualType": "firehose",
+      "behaviorType": "shotgun",
+      "effectiveType": "firehose",
+      "aliases": [
+        "firehose"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "firehose_icon",
+        "runtime": [
+          "firehose_gun",
+          "firehose_icon",
+          "shotgun_weapon",
+          "shotgun_gun",
+          "shotgun_icon"
+        ]
+      }
+    },
+    "fireworks": {
+      "visualType": "fireworks",
+      "behaviorType": "mortar",
+      "effectiveType": "fireworks",
+      "aliases": [
+        "fireworks"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "fireworks_icon",
+        "runtime": [
+          "fireworks_ammo",
+          "fireworks_gun",
+          "fireworks_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "fishchunk": {
+      "visualType": "fishchunk",
+      "behaviorType": "mortar",
+      "effectiveType": "fishchunk",
+      "aliases": [
+        "fishchunk"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "fishchunk_ammo",
+          "anvil_ammo",
+          "anvil_icon"
+        ]
+      }
+    },
+    "fishspit": {
+      "visualType": "fishspit",
+      "behaviorType": "spit",
+      "effectiveType": "fishspit",
+      "aliases": [
+        "fishspit"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "fishspit_icon",
+        "runtime": [
+          "fishspit_ammo",
+          "fishspit_gun",
+          "fishspit_icon",
+          "spit_gun",
+          "spit_icon"
+        ]
+      }
+    },
+    "flame": {
+      "visualType": "flame",
+      "behaviorType": "goo",
+      "effectiveType": "flame",
+      "aliases": [
+        "flame"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "flame_icon",
+        "runtime": [
+          "flame_ammo",
+          "flame_gun",
+          "flame_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "flamechild": {
+      "visualType": "flamechild",
+      "behaviorType": "goochild",
+      "effectiveType": "flamechild",
+      "aliases": [
+        "flamechild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "flamechild_ammo",
+          "goochild_ammo"
+        ]
+      }
+    },
+    "flamethrower": {
+      "visualType": "flamethrower",
+      "behaviorType": "flamethrower",
+      "effectiveType": "flamethrower",
+      "aliases": [
+        "flamethrower"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "flamethrower_icon",
+        "runtime": [
+          "flamethrower_weapon",
+          "flamethrower_ammo",
+          "flamethrower_gun",
+          "flamethrower_icon"
+        ]
+      }
+    },
+    "flood": {
+      "visualType": "flood",
+      "behaviorType": "flood",
+      "effectiveType": "flood",
+      "aliases": [
+        "flood"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "flood_icon",
+        "runtime": [
+          "flood_icon"
+        ]
+      }
+    },
+    "fly": {
+      "visualType": "fly",
+      "behaviorType": "jetpack",
+      "effectiveType": "fly",
+      "aliases": [
+        "fly"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "jetpack_icon"
+        ]
+      }
+    },
+    "freeze": {
+      "visualType": "freeze",
+      "behaviorType": "mortar",
+      "effectiveType": "freeze",
+      "aliases": [
+        "freeze"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "freeze_icon",
+        "runtime": [
+          "freeze_gun",
+          "freeze_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "gameovernuke": {
+      "visualType": "gameovernuke",
+      "behaviorType": "mortar",
+      "effectiveType": "gameovernuke",
+      "aliases": [
+        "gameovernuke"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gameovernuke_icon",
+        "runtime": [
+          "gameovernuke_ammo",
+          "gameovernuke_gun",
+          "gameovernuke_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "gammabeam": {
+      "visualType": "gammabeam",
+      "behaviorType": "lasercannon",
+      "effectiveType": "gammabeam",
+      "aliases": [
+        "gammabeam"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gammabeam_icon",
+        "runtime": [
+          "gammabeam_weapon",
+          "gammabeam_gun",
+          "gammabeam_icon",
+          "lasercannon_weapon",
+          "lasercannon_gun",
+          "lasercannon_icon"
+        ]
+      }
+    },
+    "gammaray": {
+      "visualType": "gammaray",
+      "behaviorType": "lasercannon",
+      "effectiveType": "gammaray",
+      "aliases": [
+        "gammaray"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gammaray_icon",
+        "runtime": [
+          "gammaray_weapon",
+          "gammaray_gun",
+          "gammaray_icon",
+          "lasercannon_weapon",
+          "lasercannon_gun",
+          "lasercannon_icon"
+        ]
+      }
+    },
+    "gammastar": {
+      "visualType": "gammastar",
+      "behaviorType": "lasercannon",
+      "effectiveType": "gammastar",
+      "aliases": [
+        "gammastar"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gammastar_icon",
+        "runtime": [
+          "gammastar_weapon",
+          "gammastar_gun",
+          "gammastar_icon",
+          "lasercannon_weapon",
+          "lasercannon_gun",
+          "lasercannon_icon"
+        ]
+      }
+    },
+    "gas": {
+      "visualType": "gas",
+      "behaviorType": "acidcloud",
+      "effectiveType": "gas",
+      "aliases": [
+        "gas"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gas_icon",
+        "runtime": [
+          "gas_ammo",
+          "gas_gun",
+          "gas_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "giant": {
+      "visualType": "giant",
+      "behaviorType": "giant",
+      "effectiveType": "giant",
+      "aliases": [
+        "giant"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "giant_icon",
+        "runtime": [
+          "giant_icon"
+        ]
+      }
+    },
+    "goo": {
+      "visualType": "goo",
+      "behaviorType": "goo",
+      "effectiveType": "goo",
+      "aliases": [
+        "goo"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "goo_icon",
+        "runtime": [
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "goochild": {
+      "visualType": "goochild",
+      "behaviorType": "goochild",
+      "effectiveType": "goochild",
+      "aliases": [
+        "goochild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "goochild_ammo"
+        ]
+      }
+    },
+    "goolake": {
+      "visualType": "goolake",
+      "behaviorType": "goo",
+      "effectiveType": "goolake",
+      "aliases": [
+        "goolake"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "goolake_icon",
+        "runtime": [
+          "goolake_ammo",
+          "goolake_gun",
+          "goolake_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "goopowered": {
+      "visualType": "goopowered",
+      "behaviorType": "goochild",
+      "effectiveType": "goopowered",
+      "aliases": [
+        "goopowered"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "goochild_ammo"
+        ]
+      }
+    },
+    "goopuddle": {
+      "visualType": "goopuddle",
+      "behaviorType": "goo",
+      "effectiveType": "goopuddle",
+      "aliases": [
+        "goopuddle"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "goopuddle_icon",
+        "runtime": [
+          "goopuddle_weapon",
+          "goopuddle_ammo",
+          "goopuddle_gun",
+          "goopuddle_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "gooshotKI1": {
+      "visualType": "gooshotKI1",
+      "behaviorType": "goo",
+      "effectiveType": "gooshotKI1",
+      "aliases": [
+        "gooshotKI1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gooshotKI1_icon",
+        "runtime": [
+          "gooshotKI1_weapon",
+          "gooshotKI1_ammo",
+          "gooshotKI1_gun",
+          "gooshotKI1_icon",
+          "goo_weapon",
+          "goo_ammo",
+          "goo_gun",
+          "goo_icon"
+        ]
+      }
+    },
+    "goostrike": {
+      "visualType": "goostrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "goostrike",
+      "aliases": [
+        "goostrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "goostrike_icon",
+        "runtime": [
+          "goostrike_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "grappling": {
+      "visualType": "grappling",
+      "behaviorType": "grappling",
+      "effectiveType": "grappling",
+      "aliases": [
+        "grappling"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "grappling_icon",
+        "runtime": [
+          "grappling_weapon",
+          "grappling_ammo",
+          "grappling_gun",
+          "grappling_icon"
+        ]
+      }
+    },
+    "gravbubble": {
+      "visualType": "gravbubble",
+      "behaviorType": "mortar",
+      "effectiveType": "gravbubble",
+      "aliases": [
+        "gravbubble"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "gravbubble_icon",
+        "runtime": [
+          "gravbubble_ammo",
+          "gravbubble_gun",
+          "gravbubble_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "grenade": {
+      "visualType": "grenade",
+      "behaviorType": "grenade",
+      "effectiveType": "grenade",
+      "aliases": [
+        "grenade"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "grenade_icon",
+        "runtime": [
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "grenadeEL1": {
+      "visualType": "grenadeEL1",
+      "behaviorType": "grenade",
+      "effectiveType": "grenadeEL1",
+      "aliases": [
+        "grenadeEL1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "grenadeEL1_icon",
+        "runtime": [
+          "grenadeEL1_ammo",
+          "grenadeEL1_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "grenadeshower": {
+      "visualType": "grenadeshower",
+      "behaviorType": "grenade",
+      "effectiveType": "grenadeshower",
+      "aliases": [
+        "grenadeshower"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "grenadeshower_icon",
+        "runtime": [
+          "grenadeshower_ammo",
+          "grenadeshower_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "hamsterball": {
+      "visualType": "hamsterball",
+      "behaviorType": "flamethrower",
+      "effectiveType": "hamsterball",
+      "aliases": [
+        "hamsterball"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "hamsterball_icon",
+        "runtime": [
+          "hamsterball_ammo",
+          "hamsterball_icon",
+          "flamethrower_weapon",
+          "flamethrower_ammo",
+          "flamethrower_gun",
+          "flamethrower_icon"
+        ]
+      }
+    },
+    "harpoon": {
+      "visualType": "harpoon",
+      "behaviorType": "mortar",
+      "effectiveType": "harpoon",
+      "aliases": [
+        "harpoon"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "harpoon_icon",
+        "runtime": [
+          "harpoon_ammo",
+          "harpoon_gun",
+          "harpoon_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "headbutt": {
+      "visualType": "headbutt",
+      "behaviorType": "punch",
+      "effectiveType": "headbutt",
+      "aliases": [
+        "headbutt"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "headbutt_icon",
+        "runtime": [
+          "headbutt_weapon",
+          "headbutt_icon",
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "healthEquipA": {
+      "visualType": "healthEquipA",
+      "behaviorType": "healthEquipA",
+      "effectiveType": "healthEquipA",
+      "aliases": [
+        "healthEquipA"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "healthEquipA_icon",
+        "runtime": [
+          "healthEquipA_weapon",
+          "healthEquipA_ammo",
+          "healthEquipA_icon"
+        ]
+      }
+    },
+    "heartdynamite": {
+      "visualType": "heartdynamite",
+      "behaviorType": "heartdynamite",
+      "effectiveType": "heartdynamite",
+      "aliases": [
+        "heartdynamite"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "heartdynamite_icon",
+        "runtime": [
+          "heartdynamite_ammo",
+          "heartdynamite_icon"
+        ]
+      }
+    },
+    "howl": {
+      "visualType": "howl",
+      "behaviorType": "spit",
+      "effectiveType": "howl",
+      "aliases": [
+        "howl"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "howl_icon",
+        "runtime": [
+          "howl_icon",
+          "spit_gun",
+          "spit_icon"
+        ]
+      }
+    },
+    "howlchild": {
+      "visualType": "howlchild",
+      "behaviorType": "fireball",
+      "effectiveType": "howlchild",
+      "aliases": [
+        "howlchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "howlchild_ammo",
+          "fireball_ammo"
+        ]
+      }
+    },
+    "invisibility": {
+      "visualType": "invisibility",
+      "behaviorType": "mortar",
+      "effectiveType": "invisibility",
+      "aliases": [
+        "invisibility"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "invisibility_icon",
+        "runtime": [
+          "invisibility_gun",
+          "invisibility_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "jet": {
+      "visualType": "jet",
+      "behaviorType": "jet",
+      "effectiveType": "jet",
+      "aliases": [
+        "jet"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "jet_icon",
+        "runtime": [
+          "jet_icon"
+        ]
+      }
+    },
+    "jetpack": {
+      "visualType": "jetpack",
+      "behaviorType": "jetpack",
+      "effectiveType": "jetpack",
+      "aliases": [
+        "jetpack"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "jetpack_icon",
+        "runtime": [
+          "jetpack_icon"
+        ]
+      }
+    },
+    "jinglebell": {
+      "visualType": "jinglebell",
+      "behaviorType": "mallet",
+      "effectiveType": "jinglebell",
+      "aliases": [
+        "jinglebell"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "jinglebell_icon",
+        "runtime": [
+          "jinglebell_weapon",
+          "jinglebell_gun",
+          "jinglebell_icon",
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "jumbomissile": {
+      "visualType": "jumbomissile",
+      "behaviorType": "mortar",
+      "effectiveType": "jumbomissile",
+      "aliases": [
+        "jumbomissile"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "jumbomissile_icon",
+        "runtime": [
+          "jumbomissile_ammo",
+          "jumbomissile_gun",
+          "jumbomissile_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "kame": {
+      "visualType": "kame",
+      "behaviorType": "kame",
+      "effectiveType": "kame",
+      "aliases": [
+        "kame"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "kame_icon",
+        "runtime": [
+          "kame_gun",
+          "kame_icon",
+          "laser_ammo"
+        ]
+      }
+    },
+    "killerhamster": {
+      "visualType": "killerhamster",
+      "behaviorType": "spider",
+      "effectiveType": "killerhamster",
+      "aliases": [
+        "killerhamster"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "killerhamster_ammo",
+          "spider_weapon",
+          "spider_ammo",
+          "spider_icon"
+        ]
+      }
+    },
+    "kissgoodby": {
+      "visualType": "kissgoodby",
+      "behaviorType": "heartdynamite",
+      "effectiveType": "kissgoodby",
+      "aliases": [
+        "kissgoodby"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "kissgoodby_icon",
+        "runtime": [
+          "kissgoodby_ammo",
+          "kissgoodby_icon",
+          "heartdynamite_ammo",
+          "heartdynamite_icon"
+        ]
+      }
+    },
+    "lantern": {
+      "visualType": "lantern",
+      "behaviorType": "mallet",
+      "effectiveType": "lantern",
+      "aliases": [
+        "lantern"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "lantern_icon",
+        "runtime": [
+          "lantern_gun",
+          "lantern_icon",
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "lasercannon": {
+      "visualType": "lasercannon",
+      "behaviorType": "lasercannon",
+      "effectiveType": "lasercannon",
+      "aliases": [
+        "lasercannon"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "lasercannon_icon",
+        "runtime": [
+          "lasercannon_weapon",
+          "lasercannon_gun",
+          "lasercannon_icon"
+        ]
+      }
+    },
+    "lightning": {
+      "visualType": "lightning",
+      "behaviorType": "lightning",
+      "effectiveType": "lightning",
+      "aliases": [
+        "lightning"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "lightning_icon",
+        "runtime": [
+          "lightning_weapon",
+          "lightning_gun",
+          "lightning_icon"
+        ]
+      }
+    },
+    "lightningstorm": {
+      "visualType": "lightningstorm",
+      "behaviorType": "lightningstorm",
+      "effectiveType": "lightningstorm",
+      "aliases": [
+        "lightningstorm"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "lightningstorm_icon",
+        "runtime": [
+          "lightningstorm_ammo",
+          "lightningstorm_icon"
+        ]
+      }
+    },
+    "mallet": {
+      "visualType": "mallet",
+      "behaviorType": "mallet",
+      "effectiveType": "mallet",
+      "aliases": [
+        "mallet"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "mallet_icon",
+        "runtime": [
+          "mallet_weapon",
+          "mallet_gun",
+          "mallet_icon"
+        ]
+      }
+    },
+    "marshmallow": {
+      "visualType": "marshmallow",
+      "behaviorType": "marshmallow",
+      "effectiveType": "marshmallow",
+      "aliases": [
+        "marshmallow"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "marshmallow_icon",
+        "runtime": [
+          "marshmallow_weapon",
+          "marshmallow_gun",
+          "marshmallow_icon"
+        ]
+      }
+    },
+    "megamirv": {
+      "visualType": "megamirv",
+      "behaviorType": "mirv",
+      "effectiveType": "megamirv",
+      "aliases": [
+        "megamirv"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "megamirv_icon",
+        "runtime": [
+          "megamirv_ammo",
+          "megamirv_gun",
+          "megamirv_icon",
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "megamirvchild": {
+      "visualType": "megamirvchild",
+      "behaviorType": "mirvchild",
+      "effectiveType": "megamirvchild",
+      "aliases": [
+        "megamirvchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "megamirvchild_ammo",
+          "mirvchild_ammo"
+        ]
+      }
+    },
+    "meganinjastar": {
+      "visualType": "meganinjastar",
+      "behaviorType": "ninjastar",
+      "effectiveType": "meganinjastar",
+      "aliases": [
+        "meganinjastar"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "meganinjastar_icon",
+        "runtime": [
+          "meganinjastar_ammo",
+          "meganinjastar_icon",
+          "shuriken_ammo",
+          "shuriken_gun",
+          "shuriken_icon"
+        ]
+      }
+    },
+    "meganuke": {
+      "visualType": "meganuke",
+      "behaviorType": "mortar",
+      "effectiveType": "meganuke",
+      "aliases": [
+        "meganuke"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "meganuke_icon",
+        "runtime": [
+          "meganuke_ammo",
+          "meganuke_gun",
+          "meganuke_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "mine": {
+      "visualType": "mine",
+      "behaviorType": "mine",
+      "effectiveType": "mine",
+      "aliases": [
+        "mine"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "mine_icon",
+        "runtime": [
+          "mine_weapon",
+          "mine_ammo",
+          "mine_icon"
+        ]
+      }
+    },
+    "mines": {
+      "visualType": "mines",
+      "behaviorType": "mine",
+      "effectiveType": "mines",
+      "aliases": [
+        "mines"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "mines_icon",
+        "runtime": [
+          "mines_ammo",
+          "mines_gun",
+          "mines_icon",
+          "mine_weapon",
+          "mine_ammo",
+          "mine_icon"
+        ]
+      }
+    },
+    "minestrike": {
+      "visualType": "minestrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "minestrike",
+      "aliases": [
+        "minestrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "minestrike_icon",
+        "runtime": [
+          "minestrike_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "minigun": {
+      "visualType": "minigun",
+      "behaviorType": "shotgun",
+      "effectiveType": "minigun",
+      "aliases": [
+        "minigun"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "minigun_icon",
+        "runtime": [
+          "minigun_gun",
+          "minigun_icon",
+          "shotgun_weapon",
+          "shotgun_gun",
+          "shotgun_icon"
+        ]
+      }
+    },
+    "mirv": {
+      "visualType": "mirv",
+      "behaviorType": "mirv",
+      "effectiveType": "mirv",
+      "aliases": [
+        "mirv"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "mirv_icon",
+        "runtime": [
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "mirvchild": {
+      "visualType": "mirvchild",
+      "behaviorType": "mirvchild",
+      "effectiveType": "mirvchild",
+      "aliases": [
+        "mirvchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "mirvchild_ammo"
+        ]
+      }
+    },
+    "mirvchildSC1": {
+      "visualType": "mirvchildSC1",
+      "behaviorType": "mirvchild",
+      "effectiveType": "mirvchildSC1",
+      "aliases": [
+        "mirvchildSC1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "mirvchildSC1_ammo",
+          "mirvchild_ammo"
+        ]
+      }
+    },
+    "mirvSC1": {
+      "visualType": "mirvSC1",
+      "behaviorType": "mirv",
+      "effectiveType": "mirvSC1",
+      "aliases": [
+        "mirvSC1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "mirvSC1_icon",
+        "runtime": [
+          "mirvSC1_weapon",
+          "mirvSC1_ammo",
+          "mirvSC1_gun",
+          "mirvSC1_icon",
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "mortar": {
+      "visualType": "mortar",
+      "behaviorType": "mortar",
+      "effectiveType": "mortar",
+      "aliases": [
+        "mortar"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "mortar_icon",
+        "runtime": [
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "mosquito": {
+      "visualType": "mosquito",
+      "behaviorType": "beechild",
+      "effectiveType": "mosquito",
+      "aliases": [
+        "mosquito"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "mosquito_ammo",
+          "beechild_ammo"
+        ]
+      }
+    },
+    "multishot": {
+      "visualType": "multishot",
+      "behaviorType": "mortar",
+      "effectiveType": "multishot",
+      "aliases": [
+        "multishot"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "multishot_icon",
+        "runtime": [
+          "multishot_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "multishotchild": {
+      "visualType": "multishotchild",
+      "behaviorType": "mortar",
+      "effectiveType": "multishotchild",
+      "aliases": [
+        "multishotchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "multishotchild_ammo",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "ninjastar": {
+      "visualType": "ninjastar",
+      "behaviorType": "mortar",
+      "effectiveType": "ninjastar",
+      "aliases": [
+        "ninjastar"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "ninjastar_icon",
+        "runtime": [
+          "ninjastar_ammo",
+          "ninjastar_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "nuke": {
+      "visualType": "nuke",
+      "behaviorType": "mortar",
+      "effectiveType": "nuke",
+      "aliases": [
+        "nuke"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "nuke_icon",
+        "runtime": [
+          "nuke_ammo",
+          "nuke_gun",
+          "nuke_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "oilcanchild": {
+      "visualType": "oilcanchild",
+      "behaviorType": "oilcanchild",
+      "effectiveType": "oilcanchild",
+      "aliases": [
+        "oilcanchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "oilcanchild_ammo"
+        ]
+      }
+    },
+    "packaging_peanuts": {
+      "visualType": "packaging_peanuts",
+      "behaviorType": "mortar",
+      "effectiveType": "packaging_peanuts",
+      "aliases": [
+        "packaging_peanuts"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "packaging_peanuts_icon",
+        "runtime": [
+          "packaging_peanuts_ammo",
+          "packaging_peanuts_gun",
+          "packaging_peanuts_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "potato1": {
+      "visualType": "potato1",
+      "behaviorType": "mortar",
+      "effectiveType": "potato1",
+      "aliases": [
+        "potato1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "potato1_icon",
+        "runtime": [
+          "potato1_ammo",
+          "potato1_gun",
+          "potato1_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "potato2": {
+      "visualType": "potato2",
+      "behaviorType": "mortar",
+      "effectiveType": "potato2",
+      "aliases": [
+        "potato2"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "potato2_icon",
+        "runtime": [
+          "potato2_ammo",
+          "potato2_gun",
+          "potato2_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "pumpkin": {
+      "visualType": "pumpkin",
+      "behaviorType": "mortar",
+      "effectiveType": "pumpkin",
+      "aliases": [
+        "pumpkin"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "pumpkin_icon",
+        "runtime": [
+          "pumpkin_ammo",
+          "pumpkin_gun",
+          "pumpkin_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "punch": {
+      "visualType": "punch",
+      "behaviorType": "punch",
+      "effectiveType": "punch",
+      "aliases": [
+        "punch"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "punch_icon",
+        "runtime": [
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "punchsmack": {
+      "visualType": "punchsmack",
+      "behaviorType": "punch",
+      "effectiveType": "punchsmack",
+      "aliases": [
+        "punchsmack"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "punchsmack_icon",
+        "runtime": [
+          "punchsmack_icon",
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "queenbee": {
+      "visualType": "queenbee",
+      "behaviorType": "flamethrower",
+      "effectiveType": "queenbee",
+      "aliases": [
+        "queenbee"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "queenbee_icon",
+        "runtime": [
+          "queenbee_ammo",
+          "queenbee_gun",
+          "queenbee_icon",
+          "flamethrower_weapon",
+          "flamethrower_ammo",
+          "flamethrower_gun",
+          "flamethrower_icon"
+        ]
+      }
+    },
+    "queenbeechild": {
+      "visualType": "queenbeechild",
+      "behaviorType": "beechild",
+      "effectiveType": "queenbeechild",
+      "aliases": [
+        "queenbeechild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "queenbeechild_ammo",
+          "beechild_ammo"
+        ]
+      }
+    },
+    "quintuplets": {
+      "visualType": "quintuplets",
+      "behaviorType": "mortar",
+      "effectiveType": "quintuplets",
+      "aliases": [
+        "quintuplets"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "quintuplets_icon",
+        "runtime": [
+          "quintuplets_ammo",
+          "quintuplets_gun",
+          "quintuplets_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "rabbithatchildbig": {
+      "visualType": "rabbithatchildbig",
+      "behaviorType": "spider",
+      "effectiveType": "rabbithatchildbig",
+      "aliases": [
+        "rabbithatchildbig"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "rabbithatchildbig_ammo",
+          "spider_weapon",
+          "spider_ammo",
+          "spider_icon"
+        ]
+      }
+    },
+    "rabbitshower": {
+      "visualType": "rabbitshower",
+      "behaviorType": "airstrike",
+      "effectiveType": "rabbitshower",
+      "aliases": [
+        "rabbitshower"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "rabbitshower_icon",
+        "runtime": [
+          "rabbitshower_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "razor_apple": {
+      "visualType": "razor_apple",
+      "behaviorType": "grenade",
+      "effectiveType": "razor_apple",
+      "aliases": [
+        "razor_apple"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "razor_apple_icon",
+        "runtime": [
+          "razor_apple_ammo",
+          "razor_apple_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "rubbergrenades": {
+      "visualType": "rubbergrenades",
+      "behaviorType": "grenade",
+      "effectiveType": "rubbergrenades",
+      "aliases": [
+        "rubbergrenades"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "rubbergrenades_icon",
+        "runtime": [
+          "rubbergrenades_ammo",
+          "rubbergrenades_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "rubbergrenadestrike": {
+      "visualType": "rubbergrenadestrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "rubbergrenadestrike",
+      "aliases": [
+        "rubbergrenadestrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "rubbergrenadestrike_icon",
+        "runtime": [
+          "rubbergrenadestrike_ammo",
+          "rubbergrenadestrike_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "rubbermirv": {
+      "visualType": "rubbermirv",
+      "behaviorType": "mirv",
+      "effectiveType": "rubbermirv",
+      "aliases": [
+        "rubbermirv"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "rubbermirv_icon",
+        "runtime": [
+          "rubbermirv_ammo",
+          "rubbermirv_gun",
+          "rubbermirv_icon",
+          "mirv_weapon",
+          "mirv_ammo",
+          "mirv_gun",
+          "mirv_icon"
+        ]
+      }
+    },
+    "rubbermirvchild": {
+      "visualType": "rubbermirvchild",
+      "behaviorType": "grenade",
+      "effectiveType": "rubbermirvchild",
+      "aliases": [
+        "rubbermirvchild"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "rubbermirvchild_ammo",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "scratch": {
+      "visualType": "scratch",
+      "behaviorType": "scratch",
+      "effectiveType": "scratch",
+      "aliases": [
+        "scratch"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "scratch_icon",
+        "runtime": [
+          "scratch_icon"
+        ]
+      }
+    },
+    "shield": {
+      "visualType": "shield",
+      "behaviorType": "shield",
+      "effectiveType": "shield",
+      "aliases": [
+        "shield"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "shield_icon",
+        "runtime": [
+          "shield_icon"
+        ]
+      }
+    },
+    "shotgun": {
+      "visualType": "shotgun",
+      "behaviorType": "shotgun",
+      "effectiveType": "shotgun",
+      "aliases": [
+        "shotgun"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "shotgun_icon",
+        "runtime": [
+          "shotgun_weapon",
+          "shotgun_gun",
+          "shotgun_icon"
+        ]
+      }
+    },
+    "shuriken": {
+      "visualType": "shuriken",
+      "behaviorType": "shuriken",
+      "effectiveType": "shuriken",
+      "aliases": [
+        "shuriken"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "shuriken_icon",
+        "runtime": [
+          "shuriken_ammo",
+          "shuriken_gun",
+          "shuriken_icon"
+        ]
+      }
+    },
+    "slingshot": {
+      "visualType": "slingshot",
+      "behaviorType": "anvil",
+      "effectiveType": "slingshot",
+      "aliases": [
+        "slingshot"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "slingshot_icon",
+        "runtime": [
+          "slingshot_ammo",
+          "slingshot_gun",
+          "slingshot_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "snowman": {
+      "visualType": "snowman",
+      "behaviorType": "mortar",
+      "effectiveType": "snowman",
+      "aliases": [
+        "snowman"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "snowman_icon",
+        "runtime": [
+          "snowman_ammo",
+          "snowman_gun",
+          "snowman_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "spider": {
+      "visualType": "spider",
+      "behaviorType": "spider",
+      "effectiveType": "spider",
+      "aliases": [
+        "spider"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "spider_icon",
+        "runtime": [
+          "spider_weapon",
+          "spider_ammo",
+          "spider_icon"
+        ]
+      }
+    },
+    "spiderstrike": {
+      "visualType": "spiderstrike",
+      "behaviorType": "airstrike",
+      "effectiveType": "spiderstrike",
+      "aliases": [
+        "spiderstrike"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "spiderstrike_icon",
+        "runtime": [
+          "spiderstrike_icon",
+          "airstrike_ammo",
+          "airstrike_icon"
+        ]
+      }
+    },
+    "spit": {
+      "visualType": "spit",
+      "behaviorType": "spit",
+      "effectiveType": "spit",
+      "aliases": [
+        "spit"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "spit_icon",
+        "runtime": [
+          "spit_gun",
+          "spit_icon"
+        ]
+      }
+    },
+    "starfield": {
+      "visualType": "starfield",
+      "behaviorType": "multishot",
+      "effectiveType": "starfield",
+      "aliases": [
+        "starfield"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "starfield_icon",
+        "runtime": [
+          "starfield_ammo",
+          "starfield_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "superjump": {
+      "visualType": "superjump",
+      "behaviorType": "superjump",
+      "effectiveType": "superjump",
+      "aliases": [
+        "superjump"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "superjump_icon",
+        "runtime": [
+          "superjump_weapon",
+          "superjump_icon"
+        ]
+      }
+    },
+    "superspin": {
+      "visualType": "superspin",
+      "behaviorType": "superspin",
+      "effectiveType": "superspin",
+      "aliases": [
+        "superspin"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "superspin_icon",
+        "runtime": [
+          "superspin_icon"
+        ]
+      }
+    },
+    "tailspin": {
+      "visualType": "tailspin",
+      "behaviorType": "punch",
+      "effectiveType": "tailspin",
+      "aliases": [
+        "tailspin"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "tailspin_icon",
+        "runtime": [
+          "tailspin_icon",
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "tailwhip": {
+      "visualType": "tailwhip",
+      "behaviorType": "punch",
+      "effectiveType": "tailwhip",
+      "aliases": [
+        "tailwhip"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "punch_weapon",
+          "punch_icon"
+        ]
+      }
+    },
+    "teleport": {
+      "visualType": "teleport",
+      "behaviorType": "teleport",
+      "effectiveType": "teleport",
+      "aliases": [
+        "teleport"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "teleport_icon",
+        "runtime": [
+          "teleport_weapon",
+          "teleport_ammo",
+          "teleport_icon"
+        ]
+      }
+    },
+    "tongue": {
+      "visualType": "tongue",
+      "behaviorType": "mortar",
+      "effectiveType": "tongue",
+      "aliases": [
+        "tongue"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "tongue_icon",
+        "runtime": [
+          "tongue_ammo",
+          "tongue_gun",
+          "tongue_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "tornado": {
+      "visualType": "tornado",
+      "behaviorType": "tornado",
+      "effectiveType": "tornado",
+      "aliases": [
+        "tornado"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": false,
+      "shopVisible": false,
+      "symbols": {
+        "icon": null,
+        "runtime": [
+          "tornado_ammo"
+        ]
+      }
+    },
+    "tornadocluster": {
+      "visualType": "tornadocluster",
+      "behaviorType": "grenade",
+      "effectiveType": "tornadocluster",
+      "aliases": [
+        "tornadocluster"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "tornadocluster_icon",
+        "runtime": [
+          "tornadocluster_ammo",
+          "tornadocluster_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "tornadogrenade": {
+      "visualType": "tornadogrenade",
+      "behaviorType": "grenade",
+      "effectiveType": "tornadogrenade",
+      "aliases": [
+        "tornadogrenade"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "tornadogrenade_icon",
+        "runtime": [
+          "tornadogrenade_ammo",
+          "tornadogrenade_icon",
+          "grenade_weapon",
+          "grenade_ammo",
+          "grenade_icon"
+        ]
+      }
+    },
+    "treegrowth": {
+      "visualType": "treegrowth",
+      "behaviorType": "mortar",
+      "effectiveType": "treegrowth",
+      "aliases": [
+        "treegrowth"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "treegrowth_icon",
+        "runtime": [
+          "treegrowth_ammo",
+          "treegrowth_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "turkey1": {
+      "visualType": "turkey1",
+      "behaviorType": "dynamite",
+      "effectiveType": "turkey1",
+      "aliases": [
+        "turkey1"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "turkey1_icon",
+        "runtime": [
+          "turkey1_ammo",
+          "turkey1_icon",
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    },
+    "turkey2": {
+      "visualType": "turkey2",
+      "behaviorType": "dynamite",
+      "effectiveType": "turkey2",
+      "aliases": [
+        "turkey2"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "turkey2_icon",
+        "runtime": [
+          "turkey2_ammo",
+          "turkey2_icon",
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    },
+    "turkey3": {
+      "visualType": "turkey3",
+      "behaviorType": "dynamite",
+      "effectiveType": "turkey3",
+      "aliases": [
+        "turkey3"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "turkey3_icon",
+        "runtime": [
+          "turkey3_ammo",
+          "turkey3_icon",
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    },
+    "turkey4": {
+      "visualType": "turkey4",
+      "behaviorType": "dynamite",
+      "effectiveType": "turkey4",
+      "aliases": [
+        "turkey4"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "turkey4_icon",
+        "runtime": [
+          "turkey4_ammo",
+          "turkey4_icon",
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    },
+    "venus": {
+      "visualType": "venus",
+      "behaviorType": "mortar",
+      "effectiveType": "venus",
+      "aliases": [
+        "venus"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "venus_icon",
+        "runtime": [
+          "venus_ammo",
+          "venus_icon",
+          "mortar_weapon",
+          "mortar_ammo",
+          "mortar_gun",
+          "mortar_icon"
+        ]
+      }
+    },
+    "walk": {
+      "visualType": "walk",
+      "behaviorType": "walk",
+      "effectiveType": "walk",
+      "aliases": [
+        "walk"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": false,
+      "symbols": {
+        "icon": "walk_icon",
+        "runtime": [
+          "walk_icon"
+        ]
+      }
+    },
+    "zoobomb": {
+      "visualType": "zoobomb",
+      "behaviorType": "dynamite",
+      "effectiveType": "zoobomb",
+      "aliases": [
+        "zoobomb"
+      ],
+      "runtimeSupported": true,
+      "iconSupported": true,
+      "shopVisible": true,
+      "symbols": {
+        "icon": "zoobomb_icon",
+        "runtime": [
+          "zoobomb_ammo",
+          "zoobomb_icon",
+          "dynamite_ammo",
+          "dynamite_icon"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "wild-ones-turkiye-web",
+  "version": "1.0.0",
+  "description": "Wild Ones: TURKIYE - Ruffle web server (container HTTP port 3000)",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "mongodb": "^7.5.0",
+    "ws": "^8.21.1"
+  },
+  "license": "MIT"
+}

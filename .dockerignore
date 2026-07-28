@@ -1,0 +1,15 @@
+**/node_modules
+**/logs
+archive
+packet_logs
+.opencode
+.tools
+docs
+web/web/gamewoswffiles
+*.log
+.env
+.git
+client-html5/dist
+coverage
+playwright-report
+test-results

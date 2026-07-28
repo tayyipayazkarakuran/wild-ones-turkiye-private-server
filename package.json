@@ -1,0 +1,24 @@
+{
+  "name": "wild-ones-turkiye-private-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Wild Ones: TURKIYE legacy SWF private server running through Ruffle",
+  "scripts": {
+    "install:deps": "npm --prefix game ci && npm --prefix web ci",
+    "test": "node --test \"tests/*.test.js\"",
+    "build:weapon-assets": "node scripts/build-weapon-asset-manifest.js",
+    "build:bot-accessories": "node scripts/build-bot-accessory-manifest.js",
+    "build:swf": "node scripts/build-ruffle-v26.js",
+    "build:swf:v26": "node scripts/build-ruffle-v26.js",
+    "build:metadata": "node scripts/write-build-metadata.js",
+    "build:runtime": "npm run build:weapon-assets && npm run build:bot-accessories && npm run build:swf:v26 && npm run build:metadata",
+    "verify:swf:v26": "node scripts/verify-ruffle-v26-build.js",
+    "verify:swf": "node scripts/verify-ruffle-v26-build.js",
+    "verify:branding": "node scripts/verify-turkiye-branding.js",
+    "verify:ui": "node scripts/verify-ui-controls.js",
+    "verify": "npm test && node scripts/verify-ruffle-v26-build.js && node scripts/verify-turkiye-branding.js && node scripts/verify-ui-controls.js && node scripts/verify-build-metadata.js"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}
