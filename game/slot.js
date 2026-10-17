@@ -186,6 +186,8 @@ class Slot{
         this.worldStateSequence = 0;
         this.lastWorldStateAtTick = -Infinity;
         this.lastWorldTerrainBroadcastRevision = -1;
+        this.lastWorldTerrainBroadcastCount = 0;
+        this.worldStateForcePending = false;
         this.combatScores = Object.create(null);
         this.projectileSequence = 0;
         this.botPendingProjectile = null;
@@ -349,10 +351,13 @@ class Slot{
     hasLiveSupport(client){
         if(!client || !client.avatar || !this.field || !this.field.bitmapData) return false;
         var avatar = client.avatar;
-        var supportY = Number(avatar.Y) + Math.max(34, Number(avatar.boundRadius || 20) + 20);
+        // The avatar is a circle of boundRadius around (X, Y), so its feet
+        // are at Y + boundRadius. Probing 20 px below the feet reported thin
+        // platforms and crater rims as "no support" and killed resting bots.
+        var supportY = Number(avatar.Y) + Number(avatar.boundRadius || 20);
         var supportedColumns = 0;
         [-16, 0, 16].forEach(function(offset){
-            for(var dy = -4; dy <= 16; dy += 4){
+            for(var dy = -6; dy <= 14; dy += 4){
                 if(this.field.checkFieldCollisionPoint(Math.round(Number(avatar.X) + offset), Math.round(supportY + dy))){
                     supportedColumns++;
                     break;
@@ -360,6 +365,66 @@ class Slot{
             }
         }.bind(this));
         return supportedColumns >= 2;
+    }
+
+    // Single entry point for every terrain change (renderer batches, legacy
+    // synchronization, server-side digs) so they all bump the revision that
+    // clients, respawn guards and bots converge on.
+    applyTerrainMutation(records, options){
+        if(!this.field) return 0;
+        var accepted = this.field.mergeExplosionRecords(records);
+        if(accepted <= 0) return 0;
+        var craters = Array.isArray(this.field.lastAcceptedRecords) ? this.field.lastAcceptedRecords.slice() : [];
+        this.terrainRevision = Number(this.terrainRevision || 0) + 1;
+        this.lastTerrainMutationAt = Date.now();
+        if(this.isRunning()){
+            this.applyBotExplosionImpulses(craters);
+            this.reconcileBotsAfterTerrainMutation();
+            this.scheduleWorldState();
+            this.sendBotState(false);
+        }
+        return accepted;
+    }
+
+    // Bots are simulated only here, so the knockback a renderer applies to a
+    // bot is overwritten by the next bot_state. Re-apply the original
+    // Battlefield.explode impulse model once per accepted crater.
+    applyBotExplosionImpulses(craters){
+        if(!Array.isArray(craters) || !craters.length || !this.WOPW || !this.WOPW.weaponsObj) return 0;
+        var pushed = 0;
+        for(var i = 0; i < craters.length; i++){
+            var crater = craters[i];
+            var weapon = crater && crater.type ? this.WOPW.weaponsObj[crater.type] : null;
+            if(!weapon) continue;
+            var r1 = Number(weapon.R1) || 0;
+            var r2 = Number(weapon.R2) || 0;
+            var damage = Number(weapon.damage) || 0;
+            var weaponImpulse = Number(weapon.impulse);
+            if(!(r2 > 0) || !(damage > 0)) continue;
+            if(!Number.isFinite(weaponImpulse)) weaponImpulse = 0.0007;
+            var inner = 25 + r1;
+            var outer = 25 + r2;
+            for(var id in this.clients){
+                var bot = this.clients[id];
+                if(!bot || !bot.isBot || !bot.avatar || bot.isDead() || bot.avatar.complete) continue;
+                var dx = crater.x - Number(bot.avatar.X);
+                var dy = crater.y - Number(bot.avatar.Y);
+                var d2 = dx * dx + dy * dy;
+                if(d2 === 0 || d2 > outer * outer) continue;
+                var d = Math.sqrt(d2);
+                var force = d2 < inner * inner || outer <= inner ? damage : damage * (1 - (d - inner) / (outer - inner));
+                var chassisImpulse = Number(bot.avatar.properties && bot.avatar.properties.impulse);
+                var impulse = -force * weaponImpulse * (Number.isFinite(chassisImpulse) && chassisImpulse > 0 ? chassisImpulse : 1);
+                if(!Number.isFinite(impulse) || impulse === 0) continue;
+                bot.avatar.Vx = Number(bot.avatar.Vx || 0) + (dx / d) * impulse;
+                bot.avatar.Vy = Number(bot.avatar.Vy || 0) + (dy / d) * impulse;
+                if(typeof bot.avatar.stopWalking === "function") bot.avatar.stopWalking();
+                bot._unsupportedTicks = 0;
+                pushed++;
+            }
+        }
+        if(pushed > 0) this.sendBotState(true);
+        return pushed;
     }
 
     reconcileBotsAfterTerrainMutation(){
@@ -370,7 +435,9 @@ class Slot{
             bot.avatar.stopWalking();
             bot.avatar.waitingForJump = false;
             bot.avatar.waitingForSuper = false;
-            bot.avatar.Vy = Math.max(Number(bot.avatar.Vy || 0), 0.02);
+            // Start the fall, but keep an upward knockback that was just applied.
+            var currentVy = Number(bot.avatar.Vy || 0);
+            bot.avatar.Vy = currentVy < -0.01 ? currentVy : Math.max(currentVy, 0.02);
             bot._unsupportedTicks = Math.max(1, Number(bot._unsupportedTicks || 0));
         }
     }
@@ -418,6 +485,20 @@ class Slot{
                 this.recoverBot(bot, "physics_error");
                 continue;
             }
+            if(![bot.avatar.X, bot.avatar.Y, bot.avatar.Vx, bot.avatar.Vy].every(function(value){ return Number.isFinite(Number(value)); })){
+                // A NaN would serialise as null and draw the bot at (0, 0).
+                bot.avatar.Vx = 0;
+                bot.avatar.Vy = 0;
+                if(!this.recoverBot(bot, "non_finite")){
+                    var last = bot.lastFinitePosition;
+                    if(last){
+                        bot.avatar.X = last.x;
+                        bot.avatar.Y = last.y;
+                    }
+                }
+                continue;
+            }
+            bot.lastFinitePosition = { x: Number(bot.avatar.X), y: Number(bot.avatar.Y) };
             // Physics is allowed to resolve terrain, never to manufacture a
             // fall/drowning damage loop. Health remains server-authoritative.
             if(health) bot.avatar.hp = health.hp;
@@ -452,7 +533,14 @@ class Slot{
         // snapshot on every update. Five samples per second are enough for the
         // 24 fps renderer's velocity interpolation and halve packet/render
         // pressure without changing server physics.
-        if(!force && this.tick - this.lastBotStateAtTick < 20) return;
+        // 10 Hz while a bot is visibly moving (walking, falling, knocked
+        // back) so renderers extrapolate less; 5 Hz when everything rests.
+        var botMoving = Object.values(this.clients).some(function(client){
+            return client && client.isBot && client.avatar && !client.isDead() &&
+                (client.avatar.isWalkingLeft || client.avatar.isWalkingRight ||
+                    Math.abs(Number(client.avatar.Vx || 0)) > 0.01 || Math.abs(Number(client.avatar.Vy || 0)) > 0.01);
+        });
+        if(!force && this.tick - this.lastBotStateAtTick < (botMoving ? 10 : 20)) return;
         var bots = [];
         for(var id in this.clients){
             var bot = this.clients[id];
@@ -513,28 +601,45 @@ class Slot{
             });
         }
         var sequence = ++this.worldStateSequence;
-        var includeTerrain = force ||
-            Number(this.lastWorldTerrainBroadcastRevision) !== Number(this.terrainRevision) ||
-            sequence % 10 === 0;
-        var terrain = [];
-        if(includeTerrain && this.field && Array.isArray(this.field.explosionRecord)){
-            terrain = this.field.explosionRecord.map(function(record){
-                return [
-                    Utils.stringToInt(record[0]),
-                    Utils.stringToInt(record[1]),
-                    Utils.stringToInt(record[2])
-                ];
-            }).filter(function(record){
-                return record.every(Number.isFinite);
-            });
+        var records = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord : [];
+        var revisionChanged = Number(this.lastWorldTerrainBroadcastRevision) !== Number(this.terrainRevision);
+        // Normally only the craters added since the last broadcast are sent
+        // (terrainFrom = the revision they extend). A periodic full list lets
+        // a renderer that fell behind recover; up-to-date renderers skip it.
+        var fullTerrain = sequence % 10 === 0 || Number(this.lastWorldTerrainBroadcastRevision) < 0 ||
+            Number(this.lastWorldTerrainBroadcastCount || 0) > records.length;
+        var terrainFrom = 0;
+        var slice = [];
+        if(fullTerrain){
+            slice = records;
+        }else if(revisionChanged){
+            terrainFrom = Number(this.lastWorldTerrainBroadcastRevision);
+            slice = records.slice(Number(this.lastWorldTerrainBroadcastCount || 0));
+        }
+        var terrain = slice.map(function(record){
+            return [
+                Utils.stringToInt(record[0]),
+                Utils.stringToInt(record[1]),
+                Utils.stringToInt(record[2])
+            ];
+        }).filter(function(record){
+            return record.every(Number.isFinite);
+        });
+        if(fullTerrain || revisionChanged){
             this.lastWorldTerrainBroadcastRevision = Number(this.terrainRevision);
+            this.lastWorldTerrainBroadcastCount = records.length;
         }
         this.sendPacket({
             command: "world_state",
-            gameId: String(this.gameId),
+            // Room ids are reused between matches while the renderer keeps
+            // its last sequence/terrain revision per id. The match identity
+            // makes every new match reset that ordering state, otherwise the
+            // second match in a room ignored world_state (and its craters).
+            gameId: String(this.matchId || this.gameId),
             sequence: sequence,
             turnEpoch: Number(this.turnEpoch || 0),
             terrainRevision: Number(this.terrainRevision || 0),
+            terrainFrom: terrainFrom,
             terrain: terrain,
             players: players
         });
@@ -1280,8 +1385,11 @@ class Slot{
     }
 
     getBotRendererId(){
+        var now = Date.now();
         var candidates = this.getHumanRendererIds().filter(function(id){
-            return Number(this.clients[id].botAiProtocol || 0) >= 2;
+            // A silent renderer cannot report bot health or completion; hand
+            // the role to a live one instead of freezing every bot hit.
+            return Number(this.clients[id].botAiProtocol || 0) >= 2 && !this.isRendererStale(this.clients[id], now);
         }.bind(this)).sort(function(a,b){
             var protocolDifference = Number(this.clients[b].botAiProtocol || 0) - Number(this.clients[a].botAiProtocol || 0);
             return protocolDifference || Number(a) - Number(b);
@@ -1524,7 +1632,16 @@ class Slot{
                 delete this.respawnAckStates[key];
                 continue;
             }
-            if(Number(state.packet.terrainRevision) !== Number(this.terrainRevision)){
+            var checkedRevision = Number(state.checkedTerrainRevision != null ? state.checkedTerrainRevision : state.packet.terrainRevision);
+            if(checkedRevision !== Number(this.terrainRevision) && !this.respawnTerrainTouched(state)){
+                // Craters elsewhere on the map do not invalidate this spawn;
+                // relocating on every terrain batch made respawns loop while
+                // a Drill or several renderers kept reporting craters.
+                state.checkedTerrainRevision = Number(this.terrainRevision);
+                state.terrainRecordCount = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0;
+                checkedRevision = state.checkedTerrainRevision;
+            }
+            if(checkedRevision !== Number(this.terrainRevision)){
                 console.warn(">> Respawn terrain changed before ACK; relocating avatar: " + key);
                 client.avatar.dead = true;
                 client.avatar.complete = true;
@@ -1579,6 +1696,23 @@ class Slot{
         }
     }
 
+    respawnTerrainTouched(state){
+        if(!state || !state.packet || !this.field || !Array.isArray(this.field.explosionRecord)) return true;
+        var records = this.field.explosionRecord;
+        var from = Number(state.terrainRecordCount || 0);
+        if(from > records.length) return true;
+        var x = Number(state.packet.x), y = Number(state.packet.y);
+        for(var i = from; i < records.length; i++){
+            var cx = Utils.stringToInt(records[i][0]);
+            var cy = Utils.stringToInt(records[i][1]);
+            var cr = Utils.stringToInt(records[i][2]);
+            if(!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cr)) return true;
+            // Pet radius (40) plus support depth below the feet.
+            if(Math.hypot(x - cx, y - cy) < cr + 90) return true;
+        }
+        return false;
+    }
+
     acknowledgeRespawn(rendererId, id, generation, respawnToken, observedX, observedY, grounded, terrainRevision){
         // Keep accepting the old two-argument shape while v21 rolls out:
         // acknowledgeRespawn(respawnedId, generation).
@@ -1593,8 +1727,13 @@ class Slot{
         if(hasGeneration && Number(state.packet.generation) !== Number(generation)) return false;
         if(String(respawnToken || "") !== String(state.packet.respawnToken || "")) return false;
         if(grounded !== true && String(grounded).toLowerCase() !== "true") return false;
-        if(Number(terrainRevision) !== Number(state.packet.terrainRevision) ||
-            Number(terrainRevision) !== Number(this.terrainRevision)) return false;
+        var checkedRevision = Number(state.checkedTerrainRevision != null ? state.checkedTerrainRevision : state.packet.terrainRevision);
+        if(Number(terrainRevision) !== Number(state.packet.terrainRevision) && Number(terrainRevision) !== Number(this.terrainRevision)) return false;
+        if(checkedRevision !== Number(this.terrainRevision)){
+            if(this.respawnTerrainTouched(state)) return false;
+            state.checkedTerrainRevision = Number(this.terrainRevision);
+            state.terrainRecordCount = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0;
+        }
         if(!Number.isFinite(Number(observedX)) || !Number.isFinite(Number(observedY))) return false;
         if(Math.hypot(Number(observedX) - Number(state.packet.x), Number(observedY) - Number(state.packet.y)) > 120) return false;
         var surface = this.resolveRespawnSurface(Number(observedX), Number(observedY) + 45);
@@ -1657,7 +1796,8 @@ class Slot{
         // A valid floor is not enough if the pet would be reconstructed inside
         // an overhang or a surviving sliver of crater wall. Require a clear
         // avatar-height capsule above the selected surface.
-        for(var clearanceY = groundY - 52; clearanceY <= groundY - 12; clearanceY += 5){
+        // The capsule spans the whole pet (about 80 px), not only its middle.
+        for(var clearanceY = groundY - 80; clearanceY <= groundY - 12; clearanceY += 6){
             if(field.checkFieldCollisionPoint(x - 12, clearanceY) ||
                 field.checkFieldCollisionPoint(x, clearanceY) ||
                 field.checkFieldCollisionPoint(x + 12, clearanceY)){
@@ -1733,8 +1873,10 @@ class Slot{
 
             var craterPenalty = 0;
             var craterOverlap = false;
+            var insideCrater = false;
             explosions.forEach(function(explosion){
                 var distance = Math.hypot(x - explosion.x, y - explosion.y);
+                if(distance < explosion.r + 10) insideCrater = true;
                 if(distance < explosion.r + 90){
                     craterOverlap = true;
                     craterPenalty += (explosion.r + 90 - distance) * 20;
@@ -1763,7 +1905,8 @@ class Slot{
                 // The current terrain mask is the final authority. Explosion
                 // overlap is a ranking penalty, not proof that all lower floor
                 // in the same column disappeared.
-                safe: surface.verified && !craterOverlap
+                safe: surface.verified && !craterOverlap,
+                usable: surface.verified && !insideCrater
             });
         }.bind(this);
 
@@ -1803,6 +1946,12 @@ class Slot{
             return b.score - a.score;
         });
         var verifiedCandidates = candidates.filter(function(candidate){ return candidate.safe; });
+        if(!verifiedCandidates.length){
+            // Late in a match every surface can be near some crater. A floor
+            // that the mask verifies and that is not inside a recorded crater
+            // is still valid; refusing it left players dead indefinitely.
+            verifiedCandidates = candidates.filter(function(candidate){ return candidate.usable; });
+        }
         if(!verifiedCandidates.length) return null;
         var topCandidates = verifiedCandidates.slice(0, Math.min(5, verifiedCandidates.length));
         return topCandidates[Math.floor(respawnRandom() * topCandidates.length)];
@@ -1876,7 +2025,11 @@ class Slot{
                 nextRetryAt: Date.now() + 250,
                 warningAt: Date.now() + 5000,
                 watchdogAt: Date.now() + 10000,
-                warningLogged: false
+                warningLogged: false,
+                // Terrain the spawn was validated against; advanced when later
+                // craters are verified not to touch the spawn point.
+                checkedTerrainRevision: Number(this.terrainRevision || 0),
+                terrainRecordCount: this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0
             };
         }else{
             client.respawnReady = true;
@@ -2345,6 +2498,7 @@ class Slot{
 
         this.sendPacket(cmd);
         this.setNextTurn(200);
+        this.botActionNotBefore = Date.now() + 2500;
         return true;
     }
 

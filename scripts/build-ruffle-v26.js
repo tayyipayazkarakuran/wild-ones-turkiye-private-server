@@ -329,9 +329,16 @@ function patchBotState(file) {
                }
                lastWorldStateSequence = v26WorldSequence;
                var v26WorldTerrainRevision:Number = Number(param1.terrainRevision);
-               if(v26WorldTerrainRevision > lastWorldTerrainRevision && param1.terrain is Array && param1.terrain.length > 0)
+               // terrain is either the full crater list (terrainFrom 0) or only
+               // the craters added after revision terrainFrom. A delta is
+               // applicable only when this renderer already has that base.
+               var v26WorldTerrainFrom:Number = param1.terrainFrom != null ? Number(param1.terrainFrom) : 0;
+               if(v26WorldTerrainRevision > lastWorldTerrainRevision && param1.terrain is Array && v26WorldTerrainFrom <= Math.max(0,lastWorldTerrainRevision))
                {
-                  _loc3_.field.applyServerTerrainEvents(param1.terrain as Array);
+                  if(param1.terrain.length > 0)
+                  {
+                     _loc3_.field.applyServerTerrainEvents(param1.terrain as Array);
+                  }
                   lastWorldTerrainRevision = v26WorldTerrainRevision;
                }
                var v26WorldStates:Array = param1.players as Array;
@@ -1331,6 +1338,12 @@ function patchPhysicsStability(timeLoopFile, commandProcessorFile, drillFile, ba
             Effects.drawEffect(param3.effect2,param1,param2,_loc12_);
          }`,
     "v26 drill particle budget");
+  battlefield = replaceOnce(battlefield,
+    `         field.explode(param1,param2,_loc8_);`,
+    `         field.currentExplosionType = _loc10_;
+         field.explode(param1,param2,_loc8_);
+         field.currentExplosionType = "";`,
+    "v26 terrain events carry the weapon type");
   write(battlefieldFile, battlefield);
 }
 
@@ -2747,6 +2760,8 @@ function patchFieldRenderer(file) {
       private var lastTerrainFlushTick:int = -100;
       
       private var foregroundDirty:Boolean = false;
+      
+      public var currentExplosionType:String = "";
       `,
     "v26 terrain synchronization guard");
   source = replaceOnce(source,
@@ -2844,7 +2859,9 @@ function patchFieldRenderer(file) {
                }
             }
          }
-         this.pendingTerrainEvents.push([X,Y,R]);
+         // The weapon type lets the server reproduce the explosion's
+         // knockback on the bots it simulates.
+         this.pendingTerrainEvents.push([X,Y,R,this.currentExplosionType]);
       }
       
       public function flushTerrainEvents(force:Boolean = false) : void

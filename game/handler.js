@@ -1328,7 +1328,10 @@ class Handler{
         var game = client.getGame();
         if(!game || !game.isRunning() || client.isBot || !game.field) return false;
         var turnEpoch = Number(data.turnEpoch);
-        if(!Number.isFinite(turnEpoch) || turnEpoch < Number(game.turnEpoch) - 1 || turnEpoch > Number(game.turnEpoch)) return false;
+        // Long effects (Drill, timed weapons) keep carving after the turn has
+        // advanced. Craters are idempotent, so accept a short window of turns
+        // instead of losing them on the server forever.
+        if(!Number.isFinite(turnEpoch) || turnEpoch < Number(game.turnEpoch) - 3 || turnEpoch > Number(game.turnEpoch)) return false;
         if(!Array.isArray(data.explosions) || data.explosions.length === 0 || data.explosions.length > 64) return false;
 
         var batchSeq = Number(data.batchSeq);
@@ -1348,22 +1351,31 @@ class Handler{
             var y = Number(explosion[1]);
             var r = Number(explosion[2]);
             if(!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(r)) continue;
-            records.push([
+            var record = [
                 Utils.intToString(x),
                 Utils.intToString(y),
                 Utils.intToString(r)
-            ]);
+            ];
+            // v26 renderers append the weapon type so the server can apply
+            // the same knockback to the bots it simulates.
+            var weaponType = typeof explosion[3] === "string" ? explosion[3] : "";
+            if(weaponType && this.WOPW && this.WOPW.weaponsObj && this.WOPW.weaponsObj[weaponType]) record.push(weaponType);
+            records.push(record);
         }
-        var accepted = game.field.mergeExplosionRecords(records);
-        // Normal five-Hz coalescing is sufficient. A forced snapshot for
-        // every Drill crater used to create a packet storm during the most
-        // expensive Ruffle frame.
+        var accepted;
+        if(typeof game.applyTerrainMutation === "function"){
+            accepted = game.applyTerrainMutation(records);
+        }else{
+            accepted = game.field.mergeExplosionRecords(records);
+            if(accepted > 0){
+                game.terrainRevision = Number(game.terrainRevision || 0) + 1;
+                game.lastTerrainMutationAt = Date.now();
+                if(typeof game.reconcileBotsAfterTerrainMutation === "function") game.reconcileBotsAfterTerrainMutation();
+                if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+                if(typeof game.sendBotState === "function") game.sendBotState(false);
+            }
+        }
         if(accepted > 0){
-            game.terrainRevision = Number(game.terrainRevision || 0) + 1;
-            game.lastTerrainMutationAt = Date.now();
-            if(typeof game.reconcileBotsAfterTerrainMutation === "function") game.reconcileBotsAfterTerrainMutation();
-            if(typeof game.sendWorldState === "function") game.sendWorldState(true);
-            if(typeof game.sendBotState === "function") game.sendBotState(false);
             if(DEBUG) console.log(
                 "terrain_batch game=" + JSON.stringify(game.gameId) +
                 " renderer=" + client.player.id +
@@ -2554,7 +2566,8 @@ class Handler{
         var game = client.getGame();
         if(!game || !data || !data.timeLoop || !Array.isArray(data.avatarList)) return;
         if(data.field && Array.isArray(data.field.explosions) && game.field){
-            game.field.mergeExplosionRecords(data.field.explosions);
+            if(typeof game.applyTerrainMutation === "function") game.applyTerrainMutation(data.field.explosions);
+            else game.field.mergeExplosionRecords(data.field.explosions);
         }
 
         // Process unaffected avatars and terrain even when one entry crosses a

@@ -2,7 +2,10 @@
 
 var DEBUG = process.env.DEBUG === 'true';
 
-const MAX_BOT_TURN_MS = 7500;
+const MAX_BOT_TURN_MS = 6000;
+// Renderers count down before the first turn of a match; a bot acting on
+// the server during that window was invisible to everybody.
+const FIRST_TURN_GRACE_MS = 2500;
 const BOT_WEAPONS_LIST = [
     "mortar", "grenade", "minigun", "marshmallow", "chainsaw", "multishot",
     "ninjastar", "tornadogrenade", "mirv", "shuriken", "drill", "goo",
@@ -28,6 +31,7 @@ const CLOSE_RANGE_LIMIT = Object.freeze({
 });
 const DEFAULT_PROJECTILE_SPEED = 1.5;
 const DEFAULT_PROJECTILE_GRAVITY = 0.0005;
+const DEFAULT_WIND_RESISTANCE = 0.0001;
 const PHYSICS_DT = 10;
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -64,9 +68,31 @@ class BotController {
                 Number(client.avatar.X) > Number(field.width || 2800) + 50 ||
                 Number(client.avatar.Y) < -120 ||
                 Number(client.avatar.Y) > Number(field.height || 1400) + 10)) return false;
-            const ownTeam = bot.player && bot.player.team;
-            const targetTeam = client.player && client.player.team;
-            return ownTeam == null || targetTeam == null || ownTeam !== targetTeam;
+            return !this.isAlly(bot, client);
+        });
+    }
+
+    isAlly(bot, other) {
+        if (!bot || !other || bot === other) return false;
+        if (this.slot.teamMode && typeof this.slot.getTeamId === "function") {
+            // Teams are assigned by roster order (getTeamId); player.team was
+            // never populated, so team-mode bots used to shoot teammates.
+            const ownTeam = this.slot.getTeamId(bot.player.id);
+            const otherTeam = this.slot.getTeamId(other.player.id);
+            return ownTeam >= 0 && ownTeam === otherTeam;
+        }
+        const ownTeam = bot.player && bot.player.team;
+        const targetTeam = other.player && other.player.team;
+        return ownTeam != null && targetTeam != null && ownTeam === targetTeam;
+    }
+
+    endangersAlly(bot, plan, weapon) {
+        if (!plan || !Number.isFinite(Number(plan.impactX)) || !Number.isFinite(Number(plan.impactY))) return false;
+        const splash = Math.max(0, Math.min(450, Number(this.weaponProperties(weapon).R2 || 0)));
+        if (splash <= 0) return false;
+        return Object.values(this.slot.clients).some((client) => {
+            if (!client || client === bot || !client.avatar || client.isDead() || !this.isAlly(bot, client)) return false;
+            return Math.hypot(Number(client.avatar.X) - plan.impactX, Number(client.avatar.Y) - plan.impactY) <= splash + 45;
         });
     }
 
@@ -100,6 +126,9 @@ class BotController {
         const gravity = Number.isFinite(Number(properties.gravity))
             ? Number(properties.gravity)
             : DEFAULT_PROJECTILE_GRAVITY;
+        // Same air resistance as the renderer's projectiles (wind itself is
+        // rolled per turn on the client and is not modelled here).
+        const windR = Number.isFinite(Number(properties.windR)) ? Number(properties.windR) : DEFAULT_WIND_RESISTANCE;
         const targetRadius = Math.max(20, Number(target.avatar.boundRadius || 25));
         const splashRadius = Math.max(0, Math.min(450, Number(properties.R2 || 0)));
         const muzzleLength = Math.max(35, Number(bot.avatar.gunLength || 45));
@@ -113,7 +142,8 @@ class BotController {
         const field = this.slot.field;
 
         for (let step = 0; step < 900; step++) {
-            vy += gravity * PHYSICS_DT;
+            vx += -vx * PHYSICS_DT * windR;
+            vy += (gravity - vy * windR) * PHYSICS_DT;
             x += vx * PHYSICS_DT;
             y += vy * PHYSICS_DT;
             const targetDistance = Math.hypot(target.avatar.X - x, target.avatar.Y - y);
@@ -212,9 +242,11 @@ class BotController {
                 score: 0
             };
         }
-        return this.planBallisticShot(bot, target, weapon, {
+        const plan = this.planBallisticShot(bot, target, weapon, {
             ignoreTerrain: PENETRATING_WEAPONS.has(weapon)
         });
+        if (plan && this.endangersAlly(bot, plan, weapon)) return null;
+        return plan;
     }
 
     initializeBag(bot) {
@@ -324,8 +356,8 @@ class BotController {
         const direction = choice.distance < 180 || directionRoll < 0.12
             ? -towardTarget
             : (directionRoll > 0.88 ? (nextRandom(bot) < 0.5 ? -1 : 1) : towardTarget);
-        const thinkDelay = 450 + Math.round(nextRandom(bot) * 700);
-        const moveDuration = 450 + Math.round(nextRandom(bot) * 650);
+        const thinkDelay = 300 + Math.round(nextRandom(bot) * 400);
+        const moveDuration = 400 + Math.round(nextRandom(bot) * 500);
         return {
             bot,
             target: choice.target,
@@ -345,7 +377,7 @@ class BotController {
             aimSteps: 6,
             aimStartAngle: NaN,
             aimCorrection: (nextRandom(bot) - 0.5) * 0.28,
-            aimInterval: 180 + Math.round(nextRandom(bot) * 80)
+            aimInterval: 120 + Math.round(nextRandom(bot) * 60)
         };
     }
 
@@ -391,7 +423,11 @@ class BotController {
         if (!this.slot.isRunning()) return this.reset();
         const bot = this.slot.clients[this.slot.currentPlayer];
         if (!bot || !bot.isBot || bot.isDead()) return this.reset();
+        // A respawned bot is not in any renderer's world until every client
+        // has acknowledged it; acting earlier moved/fired an invisible avatar.
+        if (bot.respawnReady === false) return;
         const now = Date.now();
+        if (now < Number(this.slot.botActionNotBefore || 0)) return;
         if (!this.state || this.state.bot !== bot) {
             this.state = this.begin(bot, now);
             if (!this.state) return this.finishTurn(bot);
@@ -403,6 +439,7 @@ class BotController {
             // A fired projectile owns its natural `timeAfter` turn close.  A
             // forced turn_complete races MIRV/boomerang effects in Ruffle.
             if (state.fired) return;
+            if (!state.weapon) return this.finishTurn(bot);
             const expiryTargets = this.livingTargets(bot);
             const expiryTarget = state.target && !state.target.isDead() && expiryTargets.includes(state.target)
                 ? state.target

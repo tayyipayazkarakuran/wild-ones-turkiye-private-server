@@ -84,6 +84,8 @@ try {
   assert.match(field, /"command":"terrain_explosion_batch"/, "v26 batched terrain damage must reach server bot physics");
   assert.match(field, /pendingTerrainEvents/, "v26 terrain rendering must coalesce crater work");
   assert.match(field, /function applyServerTerrainEvents/, "v26 must accept authoritative terrain convergence records");
+  assert.match(field, /currentExplosionType/, "terrain batches must carry the weapon type for server bot knockback");
+  assert.doesNotMatch(field, /cacheAsBitmap = true/, "the full-map terrain must not be cached as a second bitmap");
   assert.match(field, /clearExplosionCircle\(this\.bitmapData,Number\(v26ServerEvent\[0\]\)/,
     "authoritative terrain convergence must update the collision bitmap without echoing a new client batch");
   assert.match(field, /Boolean\(Battlefield\.timeLoop\) \? Battlefield\.timeLoop\.currentTick : 0/,
@@ -94,6 +96,7 @@ try {
   assert.match(processor, /case "bot_state"/, "v26 must apply server bot snapshots");
   assert.match(processor, /case "world_state"/, "v26 must apply periodic authoritative world snapshots");
   assert.match(processor, /lastWorldStateSequence/, "v26 must reject reordered world snapshots");
+  assert.match(processor, /param1\.terrainFrom/, "world snapshots must apply terrain deltas only on top of their base revision");
   assert.match(processor, /applyServerTerrainEvents\(param1\.terrain as Array\)/,
     "world snapshots must repair terrain missed by one renderer");
   assert.match(processor, /applyServerBotSnapshot/, "v26 bot snapshots must use visual interpolation");

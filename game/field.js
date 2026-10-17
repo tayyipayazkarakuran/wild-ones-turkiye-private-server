@@ -6,6 +6,7 @@ var Utils = require('./helpers/utils.js');
 var DEBUG = process.env.DEBUG === 'true';
 // Decoded, pristine masks shared by every room in this process.
 var decodedMasks = new Map();
+var MAX_TERRAIN_RECORDS = 8192;
 
 function decodeMask(maskPath){
     var mtimeMs = fs.statSync(maskPath).mtimeMs;
@@ -81,7 +82,9 @@ Field.prototype = {
 
     checkFieldCollisionPoint: function(x, y){
         try {
-            if(x < 0 || y < 0) return false;
+            // Outside the mask is open air/water. Jimp clamps out-of-range
+            // coordinates to the edge pixel, which created phantom ground.
+            if(x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
             // Jimp stores RGBA as 0xRRGGBBAA. The previous red-channel test
             // treated dark opaque terrain as empty and some transparent pixels
             // as solid.
@@ -103,7 +106,7 @@ Field.prototype = {
         if(this.bitmapData){
             for(var i = 0; i < pointSet.length; i++){
                 var p = pointSet[i];
-                if(p.X + x < 0 || p.Y + y < 0) continue;
+                if(p.X + x < 0 || p.Y + y < 0 || p.X + x >= this.width || p.Y + y >= this.height) continue;
                 var pix = this.getFieldPointColor(p.X + x, p.Y + y);
                 if(pix & 0x000000ff){
                     avg.sumX += p.X;
@@ -117,18 +120,58 @@ Field.prototype = {
     },
 
     explode: function(x, y, r){
-        this.mergeExplosionRecords([[Utils.intToString(x), Utils.intToString(y), Utils.intToString(r)]]);
+        var record = [Utils.intToString(x), Utils.intToString(y), Utils.intToString(r)];
+        // Server-side digs must bump the room's terrain revision exactly like
+        // renderer-reported craters, or clients never converge on them.
+        if(this.slot && typeof this.slot.applyTerrainMutation === "function") return this.slot.applyTerrainMutation([record]);
+        return this.mergeExplosionRecords([record]);
+    },
+
+    // Spatial index of accepted craters (64 px cells) used to drop a report
+    // that another renderer already sent with slightly different floats, or
+    // that lies entirely inside an existing crater (Drill emits hundreds).
+    craterCellKey: function(cx, cy){
+        return cx + ":" + cy;
+    },
+
+    isCraterCovered: function(x, y, r){
+        if(!this.craterCells) return false;
+        var cell = 64;
+        var reach = r + 64;
+        var minX = Math.floor((x - reach) / cell), maxX = Math.floor((x + reach) / cell);
+        var minY = Math.floor((y - reach) / cell), maxY = Math.floor((y + reach) / cell);
+        for(var cx = minX; cx <= maxX; cx++){
+            for(var cy = minY; cy <= maxY; cy++){
+                var bucket = this.craterCells[this.craterCellKey(cx, cy)];
+                if(!bucket) continue;
+                for(var i = 0; i < bucket.length; i++){
+                    var c = bucket[i];
+                    var dx = c[0] - x, dy = c[1] - y;
+                    // Covered when the new circle lies inside an existing one
+                    // (0.75 px tolerance for float noise between renderers).
+                    if(Math.sqrt(dx * dx + dy * dy) + r <= c[2] + 0.75) return true;
+                }
+            }
+        }
+        return false;
+    },
+
+    indexCrater: function(x, y, r){
+        if(!this.craterCells) this.craterCells = Object.create(null);
+        var key = this.craterCellKey(Math.floor(x / 64), Math.floor(y / 64));
+        (this.craterCells[key] || (this.craterCells[key] = [])).push([x, y, r]);
     },
 
     mergeExplosionRecords: function(records){
+        this.lastAcceptedRecords = [];
         if(!Array.isArray(records)) return 0;
         var accepted = 0;
         // A three-minute match cannot legitimately need an unbounded terrain
         // history. This limit also keeps malformed synchronization packets from
-        // growing the room forever.
-        var limit = Math.min(records.length, 2048);
+        // growing the room forever. Near-duplicate and covered craters are no
+        // longer stored, so the cap is reached only by genuinely new damage.
+        var limit = Math.min(records.length, MAX_TERRAIN_RECORDS);
         for(var i = 0; i < limit; i++){
-            if(this.explosionRecord.length >= 2048) break;
             var record = records[i];
             if(!Array.isArray(record) || record.length < 3) continue;
             if(!record.slice(0, 3).every(function(value){
@@ -143,11 +186,20 @@ Field.prototype = {
             if(x < -r || x > this.width + r || y < -r || y > this.height + r) continue;
 
             var canonical = [Utils.intToString(x), Utils.intToString(y), Utils.intToString(r)];
-            var key = canonical.join(":");
+            var key = Math.round(x * 2) + ":" + Math.round(y * 2) + ":" + Math.round(r * 2);
             if(this.explosionKeys[key]) continue;
             this.explosionKeys[key] = true;
+            if(this.isCraterCovered(x, y, r)) continue;
+            if(this.explosionRecord.length >= MAX_TERRAIN_RECORDS){
+                // Out of history: still carve the server mask so bots and
+                // respawns see the hole, but stop growing the snapshot.
+                this.clearExplosionPixels(x, y, r);
+                continue;
+            }
             this.explosionRecord.push(canonical);
+            this.indexCrater(x, y, r);
             this.clearExplosionPixels(x, y, r);
+            this.lastAcceptedRecords.push({ x: x, y: y, r: r, type: typeof record[3] === "string" ? record[3] : null });
             accepted++;
         }
         return accepted;
