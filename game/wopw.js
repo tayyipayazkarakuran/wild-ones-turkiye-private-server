@@ -32,6 +32,11 @@ const buildInfo = (() => {
 
 var DEBUG = process.env.DEBUG === 'true' || false;
 
+function isAnyMapRequest(name){
+    var value = String(name == null ? "" : name).trim().toLowerCase();
+    return value === "" || value === "any" || value === "random" || value === "any map";
+}
+
 class WOPW{
     constructor() {
         this.lobbyClients = {};
@@ -328,6 +333,12 @@ class WOPW{
         data.ba = asBoolean(data.ba);
         data.wi = asBoolean(data.wi);
 
+        if(isAnyMapRequest(data.mapName)){
+            // The lobby's "Any" card has no server-side map. Prefer a map
+            // where compatible players are already waiting, else pick one.
+            data.anyMap = true;
+            data.mapName = this.chooseAnyMap(data);
+        }
         if(!this.mapsObj[data.mapName]){
             data.mapError = "map_unavailable";
             return data;
@@ -386,6 +397,27 @@ class WOPW{
         data.turnDuration = turnDuration;
         data.capacityAdjusted = requestedPlayerCount > 0 && playerCount !== requestedPlayerCount;
         return data;
+    }
+
+    chooseAnyMap(rules){
+        var best = null;
+        var bestHumans = 0;
+        for(var id in this.slots){
+            var slot = this.slots[id];
+            if(!slot || slot.fillPolicy !== "auto" || !this.mapsObj[slot.mapName] || !this.isJoinable(slot)) continue;
+            if(slot.numberOfDeaths !== rules.nu || slot.teamMode !== rules.te ||
+                slot.balancedGame !== rules.ba || slot.useWind !== rules.wi) continue;
+            var humans = typeof slot.getHumanPlayerCount === "function" ? slot.getHumanPlayerCount() : slot.getPlayerCount();
+            if(humans > bestHumans){
+                best = slot.mapName;
+                bestHumans = humans;
+            }
+        }
+        if(best) return best;
+        var names = this.mapManifest && this.mapManifest.names && this.mapManifest.names.length
+            ? this.mapManifest.names
+            : Object.keys(this.mapsObj);
+        return names.length ? names[Math.floor(Math.random() * names.length)] : "";
     }
 
     findSimilarSlot(map){

@@ -10,7 +10,14 @@ const V26_MAP_NAMES = Object.freeze([
   "Creepy Crawly",
   "Hot and Spicy",
   "Lab Rats",
-  "Big Tops"
+  "Big Tops",
+  // Re-enabled with spawn/crate zones derived from their own collision
+  // masks (scripts/derive-map-layout.js); the legacy entries had positions
+  // copied from other maps.
+  "Swamp",
+  "Haunted Mansion",
+  "Tower Tops",
+  "Pumpkin Patch"
 ]);
 
 const REQUIRED_FIELDS = Object.freeze([

@@ -46,7 +46,11 @@ test("pet power server gate requires the active pet and disables Skill Match pow
   assert.match(build, /type == "punch" && source\.properties\.type != "panda"/);
   assert.match(build, /source\.processPunch\(type\)/);
   assert.match(build, /rotateToCurrentPet\(\);[\s\S]*v26 initial active pet carousel focus/);
-  assert.match(build, /"tailwhip":"crocodilewhip"/);
+  // Pet powers with their own icon symbol must not be aliased to another
+  // weapon's art; only tailwhip and fly lack one.
+  assert.match(build, /"tailwhip":"punch"/);
+  assert.match(build, /"fly":"jetpack"/);
+  assert.doesNotMatch(build, /"howl":"mortar"|"spit":"fireball"|"headbutt":"punch"/);
   assert.match(build, /v26 pet power icon aliases/);
 });
 
@@ -63,7 +67,11 @@ test("v26 lobby consumes explicit room settings and join failures", () => {
   const build = fs.readFileSync(v26Build, "utf8");
   assert.match(build, /case "room_settings"/);
   assert.match(build, /case "game_join_failed"/);
-  assert.match(build, /Unable to join game:/);
+  // Join and start failures are shown as readable text, not raw codes.
+  assert.match(build, /v26JoinFailureText\(command\.code\)/);
+  assert.match(build, /case "game_start_failed":/);
+  assert.match(build, /case "game_start_rejected":/);
+  assert.doesNotMatch(build, /Unable to join game: " \+ String/);
 });
 
 test("v26 build suppresses server-health echo packets and imports the guarded Avatar class", () => {

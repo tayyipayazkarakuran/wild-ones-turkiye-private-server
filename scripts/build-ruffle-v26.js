@@ -551,6 +551,39 @@ function patchAuthoritativeHumanRelay(controlsFile, timeLoopFile, commandProcess
   write(commandProcessorFile, commandProcessor);
 }
 
+// Readable text for the server's join/start failure codes instead of
+// showing players the raw protocol code.
+const JOIN_FAILURE_MESSAGES = Object.freeze({
+  full: "That room just filled up. Please try another game.",
+  running: "That game has already started. Please pick another room.",
+  not_found: "That room no longer exists.",
+  capacity: "No room is available for these settings right now. Please try again.",
+  map_unavailable: "This map is unavailable. Please choose one of the verified maps.",
+  invalid_settings: "These game settings are not available.",
+  duplicate: "A room with that name already exists.",
+  map_timeout: "The map took too long to load, so the match started without you. Please join another game.",
+  map_asset_error: "The map could not be loaded on the server. Please choose another map.",
+  map_capacity_exceeded: "The match could not start because the room was over capacity. Please join another game.",
+  spawn_assignment_failed: "The match could not start on this map. Please join another game.",
+  no_human_renderer: "The match could not start. Please join another game."
+});
+
+function joinFailureMethod() {
+  const cases = Object.entries(JOIN_FAILURE_MESSAGES)
+    .map(([code, text]) => `            case "${code}":\n               return ${JSON.stringify(text)};`)
+    .join("\n");
+  return `      public static function v26JoinFailureText(param1:*) : String
+      {
+         switch(String(param1))
+         {
+${cases}
+            default:
+               return "Unable to join the game. Please try again.";
+         }
+      }
+      `;
+}
+
 function patchMapUnavailable(file) {
   let source = read(file);
   source = replaceOnce(source,
@@ -561,9 +594,22 @@ function patchMapUnavailable(file) {
                MainView.instance.setPageView("home",true);
                Ballistics.overlayView.alert = "This map is unavailable. Please choose one of the verified maps.";
                break;
+            case "game_start_failed":
+            case "game_start_rejected":
+               // The server could not start this room (map load timeout,
+               // capacity, spawn failure). Leave the waiting screen instead of
+               // stranding the player on it.
+               Ballistics.mainmain.leaveBattlefield();
+               MainView.instance.setPageView("home",true);
+               Ballistics.overlayView.alert = Ballistics.v26JoinFailureText(param1.code);
+               break;
             case "game_join_failed":
                Ballistics.mainmain.leaveBattlefield();`,
     "v26 unavailable map recovery");
+  source = replaceOnce(source,
+    `               Ballistics.overlayView.alert = "Sorry\\n\\nThe game connection failed please try again.";`,
+    `               Ballistics.overlayView.alert = param1.code != null ? Ballistics.v26JoinFailureText(param1.code) : "Sorry\\n\\nThe game connection failed please try again.";`,
+    "v26 readable game join failure");
   write(file, source);
 }
 
@@ -2509,12 +2555,11 @@ function patchPetPowerIconRuntime(file) {
                "accorn":"acornschild",
                "accorns":"acornschild",
                "acornschild":"acornschild",
-               "spit":"fireball",
-               "howl":"mortar",
-               "tailwhip":"crocodilewhip",
-               "punchsmack":"punch",
-               "headbutt":"punch",
-               "tailspin":"punch"
+               // spit, howl, punchsmack, headbutt and tailspin ship their own
+               // *_icon symbols. Only these two powers have no icon of their
+               // own: use the art of the behaviour they share.
+               "tailwhip":"punch",
+               "fly":"jetpack"
             };
             var v26IconType:String = v26IconAliases[param1] != null ? String(v26IconAliases[param1]) : param1;
             icon = Ballistics.assets.makeLibraryDisplayObject(v26IconType + "_icon") as Sprite;
@@ -2556,6 +2601,10 @@ function patchLeaderboardPlayerDetails(file) {
 
 function patchLobbyPurchaseResponses(file) {
   let source = read(file);
+  source = replaceOnce(source,
+    `      public static var mainHolderFullMask:Shape;`,
+    `${joinFailureMethod()}public static var mainHolderFullMask:Shape;`,
+    "v26 join failure text helper");
   source = replaceOnce(source,
     `            case "accessoryPurchase":
                overlayView.setAccessoryPurchasePopup(param1.type);
@@ -2607,10 +2656,24 @@ function patchLobbyPurchaseResponses(file) {
     `            case "room_settings":
                // Informational acknowledgement of the resolved Any/capacity
                // choices. The following join packet owns the actual room view.
+               if(param1.capacityAdjusted === true)
+               {
+                  overlayView.setAlertPopup("This map holds at most " + String(param1.playerCount) + " players, so the room was set to " + String(param1.playerCount) + ".");
+               }
+               break;
+            case "buy_unlock_return":
+            case "buy_stat_point_return":
+            case "local_offer_return":
+               // Successes already arrive as a profile update; refusals used to
+               // be silent, which looked like an unresponsive button.
+               if(param1.value === false && param1.reason != null)
+               {
+                  overlayView.setAlertPopup(param1.reason == "cooldown" ? "This offer is not available again yet." : (param1.reason == "not_enough_treats" ? "You do not have enough treats." : "You do not have enough currency."));
+               }
                break;
             case "game_join_failed":
                QuickPlayLobby.instance.onShowGameRoomLobby();
-               overlayView.setAlertPopup("Unable to join game: " + String(command.code));
+               overlayView.setAlertPopup(v26JoinFailureText(command.code));
                break;
             case "join":
                trace("join command Ballistics.as");`,

@@ -142,15 +142,16 @@ test("duplicate authored starting coordinates are rejected instead of silently o
     );
 });
 
-test("the manifest contains only seven visible scenes with real image assets", () => {
+test("the manifest contains only the verified scenes with real image assets", () => {
     const imageRoot = path.join(repoRoot, "web", "images");
     const manifest = buildMapManifest(allMaps, {
         assetExists(relativePath) { return fs.existsSync(path.join(imageRoot, relativePath)); }
     });
     assert.deepEqual(manifest.names, V26_MAP_NAMES);
     assert.deepEqual(manifest.rejected, []);
-    assert.equal(manifest.names.includes("Swamp"), false);
-    assert.equal(manifest.names.includes("Haunted Mansion"), false);
+    assert.equal(manifest.names.length, 11);
+    // The partial Social map's mask does not match its artwork.
+    assert.equal(manifest.names.includes("Social"), false);
 });
 
 test("every visible map resolves live starting positions onto its collision mask", async () => {

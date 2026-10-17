@@ -14,7 +14,7 @@
       <p class="brand-kicker">Private server</p>
       <h1 class="brand-title" id="welcome-title">Enter the arena. <span>Keep your squad alive.</span></h1>
       <p class="brand-copy">Classic Wild Ones battles are back. Create a room, play with friends, or let matchmaking fill open slots with bots.</p>
-      <div class="status-line"><i class="status-dot" aria-hidden="true"></i> Server online</div>
+      <div class="status-line"><i class="status-dot" id="server-dot" aria-hidden="true"></i> <span id="server-status">Checking server…</span></div>
     </section>
     <section class="ticket" aria-labelledby="account-title">
       <h1 id="account-title">Battle ticket</h1>
@@ -40,10 +40,29 @@
     const message = new URLSearchParams(location.search).get('message');
     const note = document.getElementById('form-note');
     if (message) {
-      const messages = { registered: 'Fighter created. Welcome to the arena!', invalid: 'The username or password is invalid.', duplicate: 'That username is already in use.', login: 'Incorrect username or password.', signedout: 'You have signed out securely.' };
+      const messages = {
+        registered: 'Fighter created. Welcome to the arena!',
+        invalid: 'The username or password is invalid.',
+        invalid_name: 'Usernames are 3–16 characters: letters, numbers, spaces, _ or -.',
+        invalid_password: 'Passwords must be 8–72 characters long.',
+        duplicate: 'That username is already in use.',
+        login: 'Incorrect username or password.',
+        signedout: 'You have signed out securely.'
+      };
       note.textContent = messages[message] || 'The request could not be completed. Check your details.';
       note.dataset.kind = ['registered', 'signedout'].includes(message) ? 'success' : 'error';
     }
+    const serverDot = document.getElementById('server-dot');
+    const serverStatus = document.getElementById('server-status');
+    fetch('/health/ready', { cache: 'no-store' })
+      .then((response) => {
+        serverDot.classList.toggle('offline', !response.ok);
+        serverStatus.textContent = response.ok ? 'Server online' : 'Server unavailable';
+      })
+      .catch(() => {
+        serverDot.classList.add('offline');
+        serverStatus.textContent = 'Server unavailable';
+      });
   </script>
 </body>
 </html>

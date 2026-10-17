@@ -219,3 +219,17 @@ test("match commands for a recycled room are ignored instead of disconnecting", 
     assert.doesNotThrow(() => handler.handleGameCommand(client, { command: "move_left" }));
     assert.doesNotThrow(() => handler.handleGameCommand(client, { command: "request_synch", pid: 5 }));
 });
+
+test("the lobby's Any map card resolves to a waiting room's map or a verified map", () => {
+    const wopw = makeMatchmaker();
+    wopw.mapManifest = { names: ["Critter Falls"] };
+    const first = wopw.validateMapDetails({}, { mapName: "Any", playerCount: 4, gameDuration: 5, turnDuration: 10 });
+    assert.equal(first.mapError, undefined);
+    assert.equal(first.mapName, "Critter Falls");
+    assert.equal(first.anyMap, true);
+    const room = quickPlay(wopw, 1);
+    wopw.slots[room].addClient(human(1));
+    const details = wopw.validateMapDetails({}, { mapName: "", playerCount: 0, gameDuration: 0, turnDuration: 0, nu: 0, te: false, ba: false, wi: false });
+    assert.equal(wopw.findSlot({}, details, null), room, "an Any request joins the waiting player");
+    wopw.slots[room].initialize();
+});
