@@ -1,10 +1,10 @@
 {
-  "buildId": "v26-20261017T142822Z-a4e52612",
-  "builtAt": "2026-10-17T14:28:22.842Z",
+  "buildId": "v26-20261017T163223Z-c3c479bc",
+  "builtAt": "2026-10-17T16:32:23.046Z",
   "swf": {
     "file": "gamewo-v26.swf",
-    "bytes": 1724899,
-    "sha256": "A4E52612C896F7AFA28B91D5B77C37E89102756934DDCAAD4BEEC4A78D82A58C"
+    "bytes": 1724900,
+    "sha256": "C3C479BC0C64086BEC4A060379455AB530FDA646E46FA4815261110D86F25731"
   },
   "ruffle": {
     "version": "0.4.1",

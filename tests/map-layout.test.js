@@ -35,3 +35,18 @@ test("enabled maps reference previews that exist and no missing ambient loop", (
 test("the free-map list matches the enabled price-0 maps", () => {
     assert.deepEqual(maps.filter((map) => Number(map.price) === 0).map((map) => map.name).sort(), [...V26_FREE_MAP_NAMES].sort());
 });
+
+test("every enabled foreground can be rasterized by Field at load time", () => {
+    // Field draws the loaded foreground into a BitmapData on COMPLETE. Flash 5/8
+    // (AVM1) movies have not built their first frame yet at that point under
+    // Ruffle and draw as nothing, so those foregrounds ship as PNG.
+    const { analyzeSWF } = require("../scripts/lib/swf-parser.js");
+    for (const map of maps) {
+        const file = path.join(root, "web", "images", map.foreground);
+        assert.ok(fs.existsSync(file), `${map.name} foreground`);
+        if (/\.swf$/i.test(map.foreground)) {
+            // AVM2 (ActionScript 3) requires SWF version 9 or later.
+            assert.ok(analyzeSWF(file).version >= 9, `${map.name} foreground must not be an AVM1 movie`);
+        }
+    }
+});
