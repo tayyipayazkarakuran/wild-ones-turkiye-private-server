@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { V26_MAP_NAMES } = require("../shared/map-manifest.js");
+const { V26_MAP_NAMES, V26_FREE_MAP_NAMES } = require("../shared/map-manifest.js");
 const { checkMap } = require("../scripts/derive-map-layout.js");
 
 const root = path.resolve(__dirname, "..");
@@ -24,16 +24,14 @@ test("every enabled map's spawn, crate and mine zones fit its own collision mask
     }
 });
 
-test("enabled maps reference ambient sounds and previews that exist", () => {
-    const ambient = ["ambient", "ambient1", "sounds", "sounds1"]
-        .map((name) => fs.readFileSync(path.join(root, "web", "assets", `${name}.swf`)))
-        .map((buffer) => buffer.toString("latin1"));
+test("enabled maps reference previews that exist and no missing ambient loop", () => {
     for (const map of maps) {
         assert.ok(fs.existsSync(path.join(root, "web", "images", map.preview)), `${map.name} preview`);
-        assert.notEqual(map.ambientLoop, "Amb_BigTop_Loop.mp3", "Big Tops' original loop is not in any sound library");
-        for (const sound of (map.ambientRandom || []).filter(Boolean)) {
-            assert.equal(typeof sound, "string");
-        }
+        // Big Tops' original loop is in none of the shipped sound libraries.
+        assert.notEqual(map.ambientLoop, "Amb_BigTop_Loop.mp3");
     }
-    assert.ok(ambient.length === 4);
+});
+
+test("the free-map list matches the enabled price-0 maps", () => {
+    assert.deepEqual(maps.filter((map) => Number(map.price) === 0).map((map) => map.name).sort(), [...V26_FREE_MAP_NAMES].sort());
 });

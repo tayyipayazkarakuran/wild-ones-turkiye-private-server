@@ -27,7 +27,11 @@ test("v26 player wire always supplies compact inventory and null-safe lobby fiel
   assert.equal(player.userWeaponsOwned.grenade, 5);
   assert.deepEqual(player.uwe, ["grenade", "mortar"]);
   assert.deepEqual(player.userWeaponsEquipped, player.uwe);
-  assert.deepEqual(player.allowedMaps, { "Critter Falls": "Critter Falls", "Lab Rats": "Lab Rats" });
+  assert.deepEqual(player.allowedMaps, {
+    "Critter Falls": "Critter Falls", "Lab Rats": "Lab Rats",
+    // Free maps are owned by every profile.
+    Swamp: "Swamp", "Haunted Mansion": "Haunted Mansion"
+  });
   assert.deepEqual(player.attributes, {});
   assert.deepEqual(player.games, []);
   assert.deepEqual(player.ut, ["grenade"]);
@@ -49,7 +53,16 @@ test("map arrays remain canonical on the server while the legacy SWF receives na
   const player = { allowedMaps: ["Critter Falls"] };
   applyMovieCompatibility(player);
   assert.deepEqual(player.allowedMaps, ["Critter Falls"]);
-  assert.deepEqual(playerWireDto(player).allowedMaps, { "Critter Falls": "Critter Falls" });
+  assert.deepEqual(playerWireDto(player).allowedMaps, {
+    "Critter Falls": "Critter Falls", Swamp: "Swamp", "Haunted Mansion": "Haunted Mansion"
+  });
+});
+
+test("retired map names never reach the movie and free maps are always owned", () => {
+  const maps = playerWireDto({ allowedMaps: ["Kennel", "Big Tops"] }).allowedMaps;
+  assert.equal(Object.hasOwn(maps, "Kennel"), false);
+  assert.equal(maps["Big Tops"], "Big Tops");
+  assert.equal(maps.Swamp, "Swamp");
 });
 
 test("legacy accorn spellings are merged into the real acornschild asset key", () => {

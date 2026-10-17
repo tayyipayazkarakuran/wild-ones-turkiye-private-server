@@ -20,6 +20,14 @@ const V26_MAP_NAMES = Object.freeze([
   "Pumpkin Patch"
 ]);
 
+// Enabled maps with price 0 in Maps.dat. Every profile owns them, so they are
+// never shown locked; priced maps are bought in the shop.
+const V26_FREE_MAP_NAMES = Object.freeze([
+  "Critter Falls",
+  "Swamp",
+  "Haunted Mansion"
+]);
+
 const REQUIRED_FIELDS = Object.freeze([
   "name", "positions", "background", "foreground", "mask", "preview",
   "width", "height", "wind"
@@ -75,4 +83,4 @@ function isSupportedMapName(name) {
   return V26_MAP_NAMES.includes(String(name || ""));
 }
 
-module.exports = { V26_MAP_NAMES, buildMapManifest, isSupportedMapName, mapValidationError, mapAssetError };
+module.exports = { V26_MAP_NAMES, V26_FREE_MAP_NAMES, buildMapManifest, isSupportedMapName, mapValidationError, mapAssetError };

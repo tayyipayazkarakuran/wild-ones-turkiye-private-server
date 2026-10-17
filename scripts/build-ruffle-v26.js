@@ -584,6 +584,17 @@ ${cases}
       `;
 }
 
+function patchLobbyMapLockLabel(file) {
+  let source = read(file);
+  source = replaceOnce(source,
+    `            _loc9_ = FontUtil.createLabel(DEFAULT_UNLOCK_TEXT + _loc4_.model.unlockableLevel,40,16777215,true,0,0,_loc4_,"font2");`,
+    `            // Maps outside the level table are bought in the shop; the
+            // legacy sentinel level (999987) was shown to players verbatim.
+            _loc9_ = FontUtil.createLabel(_loc4_.model.unlockableLevel >= 999987 ? "BUY IN SHOP" : DEFAULT_UNLOCK_TEXT + _loc4_.model.unlockableLevel,40,16777215,true,0,0,_loc4_,"font2");`,
+    "v26 lobby shop-only map label");
+  write(file, source);
+}
+
 function patchMapUnavailable(file) {
   let source = read(file);
   source = replaceOnce(source,
@@ -3282,6 +3293,7 @@ function main() {
   const miniPet = path.join(importDir, "com", "playdom", "ballistics", "avatar", "MiniPet.as");
   const animalGraphics = path.join(importDir, "com", "playdom", "ballistics", "avatar", "AnimalGraphics.as");
   const assetManager = path.join(importDir, "com", "playdom", "asset", "AssetManager.as");
+  const lobbyMapsConveyor = path.join(importDir, "com", "playdom", "ballistics", "lobby", "LobbyMapsConveyor.as");
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "shared", "ApplicationLauncher.as"), applicationLauncher);
   copy(path.join(scriptsDir, "Player.as"), player);
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "Avatar.as"), avatar);
@@ -3329,6 +3341,7 @@ function main() {
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "MiniPet.as"), miniPet);
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "AnimalGraphics.as"), animalGraphics);
   copy(path.join(scriptsDir, "com", "playdom", "asset", "AssetManager.as"), assetManager);
+  copy(path.join(scriptsDir, "com", "playdom", "ballistics", "lobby", "LobbyMapsConveyor.as"), lobbyMapsConveyor);
   const field = path.join(importDir, "com", "playdom", "ballistics", "game", "Field.as");
   copy(path.join(root, "swf-patches", "v26", "com", "playdom", "ballistics", "game", "Field.as"), field);
   patchMaps(applicationLauncher);
@@ -3337,6 +3350,7 @@ function main() {
   patchBotState(commandProcessor);
   patchAuthoritativeHumanRelay(controls, timeLoop, commandProcessor);
   patchMapUnavailable(commandProcessor);
+  patchLobbyMapLockLabel(lobbyMapsConveyor);
   patchServerHealth(avatar);
   patchBotHealthProtocol(battlefield);
   patchRespawnAuthority(battlefield, avatar, timeLoop);

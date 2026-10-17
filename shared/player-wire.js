@@ -3,6 +3,7 @@
 const { STARTER_WEAPON_COUNTS } = require("./profile");
 const { normalizeProfileState, comparePetIds } = require("./profile-state");
 const { sanitizeEquippedAccessories } = require("./accessory-bonuses");
+const { V26_MAP_NAMES, V26_FREE_MAP_NAMES } = require("./map-manifest");
 
 // The original SWF uses compact two-letter inventory keys. Keep canonical
 // names in Mongo/server code, but send this exact compatibility vocabulary in
@@ -68,8 +69,10 @@ function normalizedAllowedMaps(value) {
   const maps = {};
   for (const name of names) {
     const normalized = String(name || "").trim();
-    if (normalized) maps[normalized] = normalized;
+    // Old profiles can carry retired map names the movie cannot render.
+    if (normalized && V26_MAP_NAMES.includes(normalized)) maps[normalized] = normalized;
   }
+  for (const name of V26_FREE_MAP_NAMES) maps[name] = name;
   return maps;
 }
 
