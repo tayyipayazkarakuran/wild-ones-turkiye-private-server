@@ -188,7 +188,7 @@ test("v26 dedicated weapon classes override catalogue inheritance at runtime", (
   assert.match(build, /weapons", "MakeWeapon\.as"\), makeWeapon/);
 });
 
-test("all twenty bot weapons resolve to the intended runtime effect family", () => {
+test("every bot weapon resolves to the intended runtime effect family", () => {
   const weapons = JSON.parse(fs.readFileSync(path.join(root, "web", "assets", "json", "WeaponsGrid.dat"), "utf8"));
   const byType = new Map(weapons.map((weapon) => [weapon.type, weapon]));
   const dedicated = new Set([
@@ -216,7 +216,8 @@ test("all twenty bot weapons resolve to the intended runtime effect family", () 
     freeze: "freeze",
     snowman: "snowman",
     acidcloud: "acidcloud",
-    boomerang: "boomerang"
+    boomerang: "boomerang",
+    shotgun: "shotgun"
   };
   for (const [type, expected] of Object.entries(expectedRuntime)) {
     const properties = byType.get(type);

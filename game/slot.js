@@ -364,7 +364,9 @@ class Slot{
                 }
             }
         }.bind(this));
-        return supportedColumns >= 2;
+        // One supported column is enough: physics already rests the pet on
+        // a ledge edge or stair tip; zero columns means it hangs over a hole.
+        return supportedColumns >= 1;
     }
 
     // Single entry point for every terrain change (renderer batches, legacy
@@ -512,13 +514,23 @@ class Slot{
             else bot._embeddedTicks = 0;
             if(this.hasLiveSupport(bot)){
                 bot._unsupportedTicks = 0;
+                bot._unsupportedMs = 0;
             }else if(Math.abs(Number(bot.avatar.Vy || 0)) < 0.01 ||
                 bot.avatar.isWalkingLeft || bot.avatar.isWalkingRight){
                 bot._unsupportedTicks = Number(bot._unsupportedTicks || 0) + 1;
+                // Measured in time, not room updates: the loop rate changed
+                // from 10 to 20 Hz and a count silently halved the grace.
+                bot._unsupportedMs = Number(bot._unsupportedMs || 0) + physicsSteps * 10;
                 bot.avatar.stopWalking();
                 bot.avatar.Vy = Math.max(Number(bot.avatar.Vy || 0), 0.02);
             }
-            if(Number(bot._unsupportedTicks || 0) >= 15){
+            if(Number(bot._unsupportedMs || 0) >= 1500){
+                bot._unsupportedTicks = 0;
+                bot._unsupportedMs = 0;
+                // Physics is holding the bot in place on geometry too narrow
+                // for the support probe (a stair edge, a crater rim). Put it
+                // on verified ground instead of awarding a free kill.
+                if(this.recoverBot(bot, "support_lost")) continue;
                 console.warn("bot_support_lost game=" + JSON.stringify(this.gameId) + " bot=" + bot.player.id);
                 this.killWorldFall(bot, this.currentPlayer);
                 continue;
