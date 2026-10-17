@@ -26,6 +26,7 @@ const {
 } = require("../shared/accessory-bonuses.js");
 
 var DEBUG = process.env.DEBUG === 'true' || false;
+const GAME_INDEPENDENT_COMMANDS = new Set(["logIn", "ping", "start_server_connect", "give_medal"]);
 
 
 class Handler{
@@ -307,6 +308,10 @@ class Handler{
         //console.log("PACKET HANDLING: " + packet + "\n");
         client.lastMessageTime = Date.now();
         if(!client.loggedIn && packet.command !== "start_server_connect" && packet.command !== "ping") return;
+        // Match commands can arrive after the room was recycled (game over,
+        // failed start). Dropping them is correct; dereferencing the missing
+        // game used to throw and disconnect the player.
+        if(!GAME_INDEPENDENT_COMMANDS.has(packet.command) && typeof client.getGame === "function" && !client.getGame()) return;
         switch(packet.command){
             case "logIn":
                 return this.handleLogin(client, packet);
@@ -960,6 +965,7 @@ class Handler{
 
         this.sendResolvedRoomSettings(client, mapDetails);
         client.gameId  = gameId;
+        this.WOPW.reserveSeat(gameId, client.player && client.player.id);
         await client.sendJoinGame();
         return true;
     }
@@ -981,22 +987,27 @@ class Handler{
                 // packet sent over the same validated connection.
                 client.loggedIn = true;
 
-                if(client.getGame().isFull()){
+                var joinGame = client.getGame();
+                var acceptsPlayers = typeof joinGame.canAccept === "function" ? joinGame.canAccept() : true;
+                var hasSeat = typeof joinGame.canAdmit === "function" ? joinGame.canAdmit(client.player.id) : !joinGame.isFull();
+                if(!acceptsPlayers || !hasSeat){
                     // The session token is scoped to the lobby-selected game.
                     // Redirecting after authentication admitted the socket to a
-                    // different room without a token for that room.
+                    // different room without a token for that room. A room
+                    // already loading its map has a committed roster.
                     client.sendPacket({
                         command: "game_join_failed",
-                        code: "full"
+                        code: acceptsPlayers ? "full" : "running"
                     });
                     return;
                 }
 
-                client.getGame().addClient(client);
+                if(joinGame.addClient(client) === false) return;
                 client.sendGamePlayers();
                 client.sendToGame(client.player);
                 client.updateGame();
-                client.getGame().stopGameStart();
+                if(typeof joinGame.onHumanJoinedDuringCountdown === "function") joinGame.onHumanJoinedDuringCountdown();
+                else joinGame.stopGameStart();
             }
         } catch(e){
             throw e;
@@ -1495,7 +1506,9 @@ class Handler{
         if(data.ammo_type === "kame") resolveDelayTicks = 1100;
         else if(behaviorType === "mirv") resolveDelayTicks = 1200;
         else if(data.ammo_type === "drill") resolveDelayTicks = 650;
-        else resolveDelayTicks = Math.max(250, Math.min(750, resolveDelayTicks));
+        // This is only the fallback for a shooter whose turn_complete never
+        // arrives; a 2 s floor keeps quick weapons from idling the room.
+        else resolveDelayTicks = Math.max(200, Math.min(750, resolveDelayTicks));
 
         var isBasicWeapon = ["mortar", "punch", "bone", "walk", "superjump", "climb", "dig", "empty"].includes(data.ammo_type);
 
@@ -1599,6 +1612,9 @@ class Handler{
         // Applying this older accumulated-damage packet as well would race the
         // exact state and can subtract the same hit twice.
         if(typeof game.getBotHealthReporterId === "function" && game.getBotHealthReporterId() != null) return;
+        // An exact health_state for this bot already covered this turn; the
+        // accumulated attacker damage would subtract the same hit again.
+        if(Number(victim.lastHealthStateEpoch) === Number(game.turnEpoch)) return;
         if(typeof game.initializeHealth !== "function" || typeof game.applyHealthState !== "function"){
             victim.avatar.hp = Math.max(0, Number(victim.avatar.hp || 0) - damage);
             if(victim.avatar.hp <= 0) game.setPlayerDead(victimId, attackerId, data.generation);
@@ -1613,19 +1629,20 @@ class Handler{
         var game = client.getGame();
         if(!game || !game.isRunning()) return;
         // Explosions and fall damage can resolve on the renderer just as a
-        // turn advances. Accept only the current (or immediately preceding)
-        // turn while the life generation and sequence still provide replay
-        // protection; rejecting that boundary packet was restoring real
-        // players to the server's older, full-health value on their next turn.
+        // turn advances, and a slow victim renderer can trail the shooter by
+        // more than one turn. The life generation and per-reporter sequence
+        // provide replay protection, so accept a short window of recent turns;
+        // rejecting those packets restored players to a stale full health.
         var reportedTurnEpoch = Number(data.turnEpoch);
-        if(!Number.isFinite(reportedTurnEpoch) || reportedTurnEpoch < Number(game.turnEpoch) - 1 || reportedTurnEpoch > Number(game.turnEpoch)) return;
+        if(!Number.isFinite(reportedTurnEpoch) || reportedTurnEpoch < Number(game.turnEpoch) - 3 || reportedTurnEpoch > Number(game.turnEpoch)) return;
         var targetId = parseInt(data.targetId != null ? data.targetId : data.id);
         var target = game.clients[targetId];
         if(!target) return;
         var raw = data.hpAfter != null ? data.hpAfter : data.hp;
         var hpAfter = typeof raw === "string" && raw.length === 16 ? Utils.stringToInt(raw) : Number(raw);
         if(!Number.isFinite(hpAfter)) return;
-        game.applyHealthState(client, targetId, hpAfter, data.generation, data.seq, data.reason, data.sourceId, { enforceReporter: true });
+        var applied = game.applyHealthState(client, targetId, hpAfter, data.generation, data.seq, data.reason, data.sourceId, { enforceReporter: true });
+        if(applied && applied.accepted && target.isBot) target.lastHealthStateEpoch = Number(game.turnEpoch);
     }
 
     handleRetractRope(client, data){
@@ -1688,7 +1705,9 @@ class Handler{
     handleRequestSynch(client, data){
         //console.log("client who requested synch: " + client.player.id);
         if(DEBUG) console.log("client whos data was req: " + data.pid);
-        client.sendPacket(client.getGame().clients[data.pid].getSynchCommand());
+        var target = client.getGame().clients[data.pid];
+        if(!target || typeof target.getSynchCommand !== "function") return;
+        client.sendPacket(target.getSynchCommand());
 
     }
 
@@ -2484,6 +2503,7 @@ class Handler{
 
         this.sendResolvedRoomSettings(client, mapDetails);
         client.gameId  = gameId;
+        this.WOPW.reserveSeat(gameId, client.player && client.player.id);
         await client.sendJoinGame();
         return true;
     }
@@ -2499,11 +2519,12 @@ class Handler{
             this.sendGameJoinFailed(client, "not_found");
             return false;
         }
-        if(gameRef.isRunning() || gameRef.isGameOver()){
+        if(gameRef.isRunning() || gameRef.isGameOver() || (typeof gameRef.canAccept === "function" && !gameRef.canAccept())){
             this.sendGameJoinFailed(client, "running");
             return false;
         }
-        if(gameRef.isFull()){
+        var joinerId = client.player && client.player.id;
+        if(typeof gameRef.canAdmit === "function" ? !gameRef.canAdmit(joinerId) : gameRef.isFull()){
             this.sendGameJoinFailed(client, "full");
             return false;
         }
@@ -2524,6 +2545,7 @@ class Handler{
             wi: gameRef.useWind
         });
         client.gameId = room.key;
+        this.WOPW.reserveSeat(room.key, joinerId);
         await client.sendJoinGame();
         return true;
     }
