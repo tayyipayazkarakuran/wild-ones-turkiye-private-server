@@ -32,6 +32,11 @@ const buildInfo = (() => {
 
 var DEBUG = process.env.DEBUG === 'true' || false;
 
+function isAnyMapRequest(name){
+    var value = String(name == null ? "" : name).trim().toLowerCase();
+    return value === "" || value === "any" || value === "random" || value === "any map";
+}
+
 class WOPW{
     constructor() {
         this.lobbyClients = {};
@@ -65,12 +70,15 @@ class WOPW{
         this.itemLevel = {};
 
         this.DEFAULT_TIME_AFTER_WEAPON = 400;
+        this.updateIntervalMs = 50;
     }
 
     async start(){
         await this.db.connect();
         this.loadAssets(0);
-        this.procTimer = setInterval(() => this.update(), 100);
+        // 20 Hz room loop: halves the latency that turn deadlines, respawns
+        // and bot actions incur from waiting for the next room update.
+        this.procTimer = setInterval(() => this.update(), this.updateIntervalMs);
     }
 
     loadAssets(pos){
@@ -276,6 +284,11 @@ class WOPW{
                 obj = obj.newObject;
             });
 
+            // Turn, shot and health packets are tiny; without TCP_NODELAY each
+            // write can sit behind a delayed ACK on the bridge connection.
+            socket.setNoDelay(true);
+            // Detect half-open bridge connections long before the idle timeout.
+            socket.setKeepAlive(true, 10000);
             socket.setTimeout(5 * 60 * 1000);
             socket.on('data', function (data) {
                 try {
@@ -320,6 +333,12 @@ class WOPW{
         data.ba = asBoolean(data.ba);
         data.wi = asBoolean(data.wi);
 
+        if(isAnyMapRequest(data.mapName)){
+            // The lobby's "Any" card has no server-side map. Prefer a map
+            // where compatible players are already waiting, else pick one.
+            data.anyMap = true;
+            data.mapName = this.chooseAnyMap(data);
+        }
         if(!this.mapsObj[data.mapName]){
             data.mapError = "map_unavailable";
             return data;
@@ -339,6 +358,7 @@ class WOPW{
         if(duration >= 60000 && duration % 60000 === 0) duration /= 60000;
         else if(duration >= 60 && duration % 60 === 0) duration /= 60;
         var allowedDurations = this.config.gameTimes.map(Number);
+        data.anyDuration = duration === 0;
         if(duration === 0) duration = allowedDurations[Math.floor(Math.random() * allowedDurations.length)];
         if(allowedDurations.indexOf(duration) < 0){
             data.mapError = "invalid_settings";
@@ -349,6 +369,7 @@ class WOPW{
         var turnDuration = Number(data.turnDuration);
         if(turnDuration >= 1000 && turnDuration % 1000 === 0) turnDuration /= 1000;
         var allowedTurns = this.config.turnTimes.map(Number);
+        data.anyTurnDuration = turnDuration === 0;
         if(turnDuration === 0) turnDuration = allowedTurns[Math.floor(Math.random() * allowedTurns.length)];
         if(allowedTurns.indexOf(turnDuration) < 0){
             data.mapError = "invalid_settings";
@@ -358,6 +379,7 @@ class WOPW{
 
         var requestedPlayerCount = Number(data.playerCount);
         var playerCount = requestedPlayerCount;
+        data.anyPlayerCount = playerCount === 0;
         if(playerCount === 0){
             playerCount = availablePlayerCounts[Math.floor(Math.random() * availablePlayerCounts.length)];
         }else if(this.config.maxPlayers.map(Number).indexOf(playerCount) < 0){
@@ -375,6 +397,27 @@ class WOPW{
         data.turnDuration = turnDuration;
         data.capacityAdjusted = requestedPlayerCount > 0 && playerCount !== requestedPlayerCount;
         return data;
+    }
+
+    chooseAnyMap(rules){
+        var best = null;
+        var bestHumans = 0;
+        for(var id in this.slots){
+            var slot = this.slots[id];
+            if(!slot || slot.fillPolicy !== "auto" || !this.mapsObj[slot.mapName] || !this.isJoinable(slot)) continue;
+            if(slot.numberOfDeaths !== rules.nu || slot.teamMode !== rules.te ||
+                slot.balancedGame !== rules.ba || slot.useWind !== rules.wi) continue;
+            var humans = typeof slot.getHumanPlayerCount === "function" ? slot.getHumanPlayerCount() : slot.getPlayerCount();
+            if(humans > bestHumans){
+                best = slot.mapName;
+                bestHumans = humans;
+            }
+        }
+        if(best) return best;
+        var names = this.mapManifest && this.mapManifest.names && this.mapManifest.names.length
+            ? this.mapManifest.names
+            : Object.keys(this.mapsObj);
+        return names.length ? names[Math.floor(Math.random() * names.length)] : "";
     }
 
     findSimilarSlot(map){
@@ -425,7 +468,7 @@ class WOPW{
             gameId = customName;
 
             if(this.slots[gameId]){
-                if(this.slots[gameId].isRunning() || this.slots[gameId].isGameOver() || (this.slots[gameId].startingTime != 0 && this.slots[gameId].startingTime <= (Date.now() + 1000))){
+                if(!this.isJoinable(this.slots[gameId])){
                     return 0;
                 }
             }else{
@@ -442,23 +485,67 @@ class WOPW{
 
             gameId = gameId.split(' ').join('-');
 
+            // "Any" settings were rolled independently per request, so two
+            // players asking for the same thing landed in different rooms.
+            // Prefer an already-waiting compatible room before rolling a key.
+            var compatible = this.findWaitingCompatibleSlot(mapDetails, gameDuration, turnDuration, playerCount);
+            if(compatible) return compatible;
+
             var maxSlots = this.config.maxSlots || 100;
             for(var i = 0; i < maxSlots; i++){
                 var tmpId = gameId + i;
                 if(this.slots[tmpId]){
-                    if(this.slots[tmpId].isRunning() || this.slots[tmpId].isGameOver()  || (this.slots[tmpId].startingTime != 0 && this.slots[tmpId].startingTime <= (Date.now() + 1000))){
+                    if(!this.isJoinable(this.slots[tmpId])){
                         continue;
                     }
-
-                    if(this.slots[tmpId].getPlayerCount() < playerCount){
-                        return tmpId;
-                    }else continue;
+                    return tmpId;
                 }else{
                     this.createSlot(tmpId, mapName, playerCount, gameDuration, turnDuration, mapDetails);
                     return tmpId;
                 }
             }
         }
+    }
+
+    isJoinable(slot){
+        if(!slot) return false;
+        if(typeof slot.canAccept === "function" && !slot.canAccept()) return false;
+        if(slot.isRunning() || slot.isGameOver()) return false;
+        if(slot.isFull()) return false;
+        return !(slot.startingTime != 0 && slot.startingTime <= (Date.now() + 1000));
+    }
+
+    findWaitingCompatibleSlot(mapDetails, gameDuration, turnDuration, playerCount){
+        var best = null;
+        var bestHumans = 0;
+        for(var id in this.slots){
+            var slot = this.slots[id];
+            if(!slot || slot.fillPolicy !== "auto" || slot.mapName !== mapDetails.mapName) continue;
+            if(slot.numberOfDeaths !== mapDetails.nu || slot.teamMode !== mapDetails.te ||
+                slot.balancedGame !== mapDetails.ba || slot.useWind !== mapDetails.wi) continue;
+            if(!mapDetails.anyDuration && slot.gameDuration !== gameDuration) continue;
+            if(!mapDetails.anyTurnDuration && slot.turnDuration !== turnDuration) continue;
+            if(!mapDetails.anyPlayerCount && slot.playerCount !== playerCount) continue;
+            if(!this.isJoinable(slot)) continue;
+            var humans = typeof slot.getHumanPlayerCount === "function" ? slot.getHumanPlayerCount() : slot.getPlayerCount();
+            if(humans < 1) continue;
+            if(!best || humans > bestHumans){
+                best = id;
+                bestHumans = humans;
+            }
+        }
+        return best;
+    }
+
+    reserveSeat(gameId, playerId){
+        if(playerId === undefined || playerId === null) return false;
+        for(var id in this.slots){
+            if(id !== gameId && this.slots[id] && typeof this.slots[id].releaseSeat === "function"){
+                this.slots[id].releaseSeat(playerId);
+            }
+        }
+        var slot = this.slots[gameId];
+        return Boolean(slot && typeof slot.reserveSeat === "function" && slot.reserveSeat(playerId));
     }
 
     createSlot(gameId, mapName, playerCount, gameDuration, turnDuration, rules){

@@ -1,6 +1,7 @@
 var Physical = require("../../physics/physical.js");
 var CollisionAverage = require("../../physics/collision.js");
 var Point = require("../../helpers/point.js");
+var Utils = require("../../helpers/utils.js");
 var calculateAccessoryBonuses = require("../../../shared/accessory-bonuses.js").calculateAccessoryBonuses;
 
 class Avatar extends Physical{
@@ -253,7 +254,9 @@ class Avatar extends Physical{
                    {
                       _local26 = _local21 + r * this.Va;
                    }
-                   if(Vnormal > 0)
+                   // _local21 is 0 when the push is exactly perpendicular to the
+                   // velocity; dividing by it produced NaN positions.
+                   if(Vnormal > 0 && _local21 !== 0)
                    {
                       this.Vx = this.bounce * (0 - _local22) + _local24 / _local21 * _local26 * 0.5 - 0.5 * this.gravity * this.dt * aveBounceX / r;
                       this.Vy = this.bounce * (0 - _local23) + _local25 / _local21 * _local26 * 0.5;

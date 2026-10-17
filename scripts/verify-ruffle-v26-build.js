@@ -84,6 +84,8 @@ try {
   assert.match(field, /"command":"terrain_explosion_batch"/, "v26 batched terrain damage must reach server bot physics");
   assert.match(field, /pendingTerrainEvents/, "v26 terrain rendering must coalesce crater work");
   assert.match(field, /function applyServerTerrainEvents/, "v26 must accept authoritative terrain convergence records");
+  assert.match(field, /currentExplosionType/, "terrain batches must carry the weapon type for server bot knockback");
+  assert.doesNotMatch(field, /cacheAsBitmap = true/, "the full-map terrain must not be cached as a second bitmap");
   assert.match(field, /clearExplosionCircle\(this\.bitmapData,Number\(v26ServerEvent\[0\]\)/,
     "authoritative terrain convergence must update the collision bitmap without echoing a new client batch");
   assert.match(field, /Boolean\(Battlefield\.timeLoop\) \? Battlefield\.timeLoop\.currentTick : 0/,
@@ -94,6 +96,7 @@ try {
   assert.match(processor, /case "bot_state"/, "v26 must apply server bot snapshots");
   assert.match(processor, /case "world_state"/, "v26 must apply periodic authoritative world snapshots");
   assert.match(processor, /lastWorldStateSequence/, "v26 must reject reordered world snapshots");
+  assert.match(processor, /param1\.terrainFrom/, "world snapshots must apply terrain deltas only on top of their base revision");
   assert.match(processor, /applyServerTerrainEvents\(param1\.terrain as Array\)/,
     "world snapshots must repair terrain missed by one renderer");
   assert.match(processor, /applyServerBotSnapshot/, "v26 bot snapshots must use visual interpolation");
@@ -135,7 +138,7 @@ try {
   assert.match(avatar, /function advanceServerBotSnapshot/, "v26 bots must interpolate authoritative positions");
   assert.match(timeLoop, /else if\(!\(main\.isMultiPlayerMode && phyObj is Avatar && Avatar\(phyObj\)\.player\.isBot\)\)/, "v26 must not run multiplayer bot collision twice");
   assert.match(timeLoop, /advanceServerBotSnapshot/, "v26 must smooth server bot motion between snapshots");
-  assert.match(timeLoop, /v26Steps < 6/, "v26 must cap fixed physics work per rendered frame");
+  assert.match(timeLoop, /v26Steps < 10/, "v26 must cap fixed physics work per rendered frame");
   assert.match(timeLoop, /currentTick <= delayBeforeGame && param1 - lastTime > 250/,
     "a new battlefield must align its application and simulation clocks before the countdown");
   assert.match(timeLoop, /forceEffectCleanup\("lag_budget"\)/, "v26 must terminate effects that exceed the lag budget");
@@ -222,7 +225,7 @@ try {
   assert.match(animalGraphics, /getTimer\(\) - legacyAnimationStartedAt/,
     "avatar timelines must use elapsed real time rather than rendered frame count");
   assert.match(assetLoadView, /pre_flash-turkiye\.png/, "loading screen must use the TURKIYE illustration");
-  assert.match(bannerView, /wild-ones-turkiye-logo\.png/, "movie banner must use the TURKIYE logo");
+  assert.match(bannerView, /wild-ones-turkiye-banner\.png/, "movie banner must use the TURKIYE logo");
   console.log(`Verified ${path.relative(root, swf)} (${fs.statSync(swf).size} bytes)`);
 } finally {
   fs.rmSync(exportDir, { recursive: true, force: true });

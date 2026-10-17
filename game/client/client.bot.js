@@ -10,14 +10,14 @@ const BOT_NAMES = [
     "Ekin", "Lale", "Mavi", "Nehir", "Ada", "Sarp", "Gokce", "Umay", "Asena", "Bilge",
     "Kutay", "Altay", "Ilgaz", "Toros", "Pamir", "Sakarya", "Likya", "Troya", "Nemrut", "Efes"
 ];
-// Minigun is the close-range option: unlike the explosives below it has a
-// four-pixel terrain radius, so bots can act safely on compact two-player
-// spawns instead of having to throw a grenade at their own feet.
+// Minigun and shotgun are the close-range options: unlike the explosives
+// below they have a four-pixel terrain radius, so bots can fight safely on
+// compact spawns; chainsaw is the melee weapon bots walk up to use.
 const BOT_WEAPONS = [
     "mortar", "grenade", "minigun", "marshmallow", "chainsaw", "multishot",
     "ninjastar", "tornadogrenade", "mirv", "shuriken", "drill", "goo",
     "lasercannon", "dart", "gravbubble", "kame", "freeze", "snowman",
-    "acidcloud", "boomerang"
+    "acidcloud", "boomerang", "shotgun"
 ];
 
 function hashSeed(value) {

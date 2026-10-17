@@ -9,6 +9,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const { MongoClient } = require("mongodb");
 const { WebSocketServer } = require("ws");
+const { compressedStatic } = require("./compressed-static");
 const { createProfile, validateCredentials, canonicalName } = require("../shared/profile");
 const {
   normalizeProfileState,
@@ -17,7 +18,7 @@ const {
 } = require("../shared/profile-state");
 const BUILD_INFO = (() => {
   try { return require("../shared/build-info.json"); }
-  catch { return { buildId: "development", swf: {}, ruffle: { presentationFps: 60, legacyAnimationFps: 24 } }; }
+  catch { return { buildId: "development", swf: {}, ruffle: { presentationFps: 24, legacyAnimationFps: 24 } }; }
 })();
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017";
@@ -85,14 +86,16 @@ async function getSessionUser(req) {
   if (!session) return null;
   const user = await db.collection("users").findOne({ id: session.userId });
   if (!user) return null;
-  await db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastUsedAt: now } });
+  // Bookkeeping only: the page must not wait a third database round trip.
+  db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastUsedAt: now } })
+    .catch((error) => console.error("session_touch_failed", error.message));
   return { token, user };
 }
 function gamePage({ dname, token }) {
   const params = JSON.stringify({ dname, snum: token, net: "M", cdnversion: ASSET_VERSION, jotscaleroot: "http://localhost/" }).replace(/</g, "\\u003c");
   const displayName = JSON.stringify(String(dname)).replace(/</g, "\\u003c");
   const encodeURIComponent = (value) => globalThis.encodeURIComponent(value === ASSET_VERSION ? GAME_SWF_REVISION : value);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#141a36"><title>Wild Ones: TURKIYE</title><link rel="stylesheet" href="/theme/private-wars.css"><script>window.__WO_BUILD__=${JSON.stringify(BUILD_INFO).replace(/</g, "\\u003c")};window.RufflePlayer={config:{autoplay:"on",unmuteOverlay:"visible",scale:"showAll",forceScale:true,frameRate:30,quality:"high",openUrlMode:"confirm",socketProxy:[{host:"localhost",port:8000,proxyUrl:(location.protocol==="https:"?"wss://":"ws://")+location.host+"/socket"},{host:"localhost",port:80,proxyUrl:(location.protocol==="https:"?"wss://":"ws://")+location.host+"/socket"}]}};</script><script src="/ruffle/ruffle.js"></script></head><body class="game-page" data-build-id="${BUILD_INFO.buildId}"><main class="game-shell" aria-label="Wild Ones: TURKIYE"><header class="game-topbar"><img src="/theme/wild-ones-turkiye-logo.png" alt="Wild Ones: TURKIYE"><div class="game-status"><i class="status-dot" aria-hidden="true"></i><span id="pilot"></span><form action="/logout" method="post"><button class="logout" type="submit">Sign out</button></form></div></header><section class="game-frame"><div id="game"></div></section></main><script>console.info("wo_runtime",window.__WO_BUILD__);document.getElementById("pilot").textContent=${displayName};const p=window.RufflePlayer.newest().createPlayer();document.getElementById("game").append(p);p.load({url:"/${GAME_SWF_FILE}?v=${encodeURIComponent(ASSET_VERSION)}",parameters:${params}});</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#141a36"><title>Wild Ones: TURKIYE</title><link rel="stylesheet" href="/theme/private-wars.css"><script>window.__WO_BUILD__=${JSON.stringify(BUILD_INFO).replace(/</g, "\\u003c")};window.RufflePlayer={config:{autoplay:"on",unmuteOverlay:"visible",scale:"showAll",forceScale:true,frameRate:24,quality:"medium",preferredRenderer:"webgl",splashScreen:false,openUrlMode:"confirm",socketProxy:[{host:"localhost",port:8000,proxyUrl:(location.protocol==="https:"?"wss://":"ws://")+location.host+"/socket"},{host:"localhost",port:80,proxyUrl:(location.protocol==="https:"?"wss://":"ws://")+location.host+"/socket"}]}};</script><script src="/ruffle/ruffle.js"></script></head><body class="game-page" data-build-id="${BUILD_INFO.buildId}"><main class="game-shell" aria-label="Wild Ones: TURKIYE"><header class="game-topbar"><img src="/theme/wild-ones-turkiye-logo.png" alt="Wild Ones: TURKIYE"><div class="game-status"><i class="status-dot" aria-hidden="true"></i><span id="pilot"></span><form action="/logout" method="post"><button class="logout" type="submit">Sign out</button></form></div></header><section class="game-frame"><div id="game"></div><div id="game-error" class="game-error" role="alert" hidden><p id="game-error-text">The game could not be loaded.</p><button type="button" class="action" id="game-retry">Try again</button></div></section></main><script>console.info("wo_runtime",window.__WO_BUILD__);document.getElementById("pilot").textContent=${displayName};const showGameError=(text)=>{document.getElementById("game-error-text").textContent=text;document.getElementById("game-error").hidden=false;};document.getElementById("game-retry").addEventListener("click",()=>location.reload());try{if(!window.RufflePlayer||typeof window.RufflePlayer.newest!=="function"||!window.RufflePlayer.newest())throw new Error("ruffle_unavailable");const p=window.RufflePlayer.newest().createPlayer();document.getElementById("game").append(p);Promise.resolve(p.load({url:"/${GAME_SWF_FILE}?v=${encodeURIComponent(ASSET_VERSION)}",parameters:${params}})).catch(()=>showGameError("The game file could not be downloaded. Check your connection and try again."));}catch(error){showGameError("The game runtime could not start in this browser. Please use an up-to-date Chrome, Edge, Firefox or Safari.");}const statusDot=document.querySelector(".game-status .status-dot");const checkServer=()=>fetch("/health/ready",{cache:"no-store"}).then((r)=>{statusDot.classList.toggle("offline",!r.ok);statusDot.title=r.ok?"Server online":"Server unavailable";}).catch(()=>{statusDot.classList.add("offline");statusDot.title="Server unavailable";});checkServer();setInterval(checkServer,30000);</script></body></html>`;
 }
 
 async function createSession(userId, gameId = null) {
@@ -142,6 +145,7 @@ async function createUserAccount(dname, password) {
     const error = new Error(result.reason);
     error.statusCode = 400;
     error.code = "invalid_credentials";
+    error.reasonCode = result.code || "invalid";
     throw error;
   }
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -159,7 +163,7 @@ app.post(["/register", "/hero"], async (req, res, next) => {
     res.redirect(303, "/play");
   } catch (error) {
     if (error && error.code === 11000) return res.redirect(303, "/?message=duplicate");
-    if (error && error.statusCode) return res.redirect(303, "/?message=invalid");
+    if (error && error.statusCode) return res.redirect(303, `/?message=${encodeURIComponent(error.reasonCode || "invalid")}`);
     next(error);
   }
 });
@@ -216,30 +220,96 @@ const emptyMidgrounds = new Set(["/images/r1_waterfall-C/wf_mid.swf", "/images/p
 // The movie still preloads these legacy preview names with a .gif suffix,
 // while the bundled source files are the matching map-specific PNGs. Keep
 // the same scene and let the Loader complete instead of emitting Ruffle 404s.
+// The PNG is sent directly (Flash decodes by content) to save a redirect.
 const previewFormatAliases = new Map([
   ["/images/r1_antfarm-A/af_preview.gif", "/images/r1_antfarm-A/af_preview.png"],
   ["/images/r1_kitchen-A/kt_preview.gif", "/images/r1_kitchen-A/kt_preview.png"],
-  ["/images/r1_lab-A/lb_preview.gif", "/images/r1_lab-A/lb_preview.png"]
+  ["/images/r1_lab-A/lb_preview.gif", "/images/r1_lab-A/lb_preview.png"],
+  ["/images/pw-big-top/bt_preview.gif", "/images/pw-big-top/bt_preview.png"],
+  ["/images/swamp/swamp_preview.gif", "/images/swamp/swamp_preview.png"],
+  ["/images/haunted/haunted_preview.gif", "/images/haunted/haunted_preview.png"],
+  ["/images/tops/tops_preview.gif", "/images/tops/tops_preview.png"]
 ]);
 // A tiny, transparent Flash 9 movie: it satisfies legacy Loader completion without drawing anything.
 const EMPTY_SWF = Buffer.from([0x46, 0x57, 0x53, 0x09, 0x12, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x18, 0x01, 0x00, 0x40, 0x00, 0x00, 0x00]);
+const IMAGES_ROOT = path.join(__dirname, "images");
+const IMAGE_CACHE = "public, max-age=3600";
+const REVISIONED_CACHE = "public, max-age=31536000, immutable";
 app.get(/^\/images\/.+/, (req, res, next) => {
   const requested = req.originalUrl.split("?")[0];
   const previewAlias = previewFormatAliases.get(requested);
-  if (previewAlias) return res.redirect(302, previewAlias);
+  if (previewAlias) {
+    res.setHeader("Cache-Control", IMAGE_CACHE);
+    return res.type("png").sendFile(path.join(IMAGES_ROOT, previewAlias.slice("/images/".length)));
+  }
   // v26 never remaps an unavailable map to a different scene.  The SWF only
   // requests transparent midground placeholders for the verified catalogue.
-  return emptyMidgrounds.has(requested) ? res.type("application/x-shockwave-flash").send(EMPTY_SWF) : next();
+  if (emptyMidgrounds.has(requested)) {
+    res.setHeader("Cache-Control", IMAGE_CACHE);
+    return res.type("application/x-shockwave-flash").send(EMPTY_SWF);
+  }
+  return next();
 });
-app.use("/ruffle", express.static(path.join(__dirname, "web", "ruffle"), { immutable: true, maxAge: "365d" }));
-app.use("/assets/json", express.static(path.join(__dirname, "assets", "json")));
-app.use("/images", express.static(path.join(__dirname, "images")));
-app.use("/assets", express.static(path.join(__dirname, "assets")));
+// Several legacy masks are PNG data behind a .gif name. With nosniff the
+// declared type must match the bytes, so label them by their signature.
+const imageSignatureCache = new Map();
+function contentTypeFromSignature(file) {
+  if (imageSignatureCache.has(file)) return imageSignatureCache.get(file);
+  let type = null;
+  try {
+    const fd = fs.openSync(file, "r");
+    const head = Buffer.alloc(4);
+    fs.readSync(fd, head, 0, 4, 0);
+    fs.closeSync(fd);
+    if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) type = "image/png";
+    else if (head[0] === 0xff && head[1] === 0xd8) type = "image/jpeg";
+    else if (head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46) type = "image/gif";
+  } catch { type = null; }
+  imageSignatureCache.set(file, type);
+  return type;
+}
+// Requests carrying a content revision (`?v=<hash>` from the build, or the
+// shipped SWF revision) can be cached forever; everything else revalidates.
+function revisionedCache(fallback) {
+  return (req, res, next) => {
+    const version = typeof req.query.v === "string" ? req.query.v : "";
+    res.locals.cacheControl = /^(?:[0-9a-f]{12}|v\d+-[0-9a-z]+)$/i.test(version) ? REVISIONED_CACHE : fallback;
+    next();
+  };
+}
+function staticOptions() {
+  return {
+    cacheControl: false,
+    setHeaders(res, file) {
+      res.setHeader("Cache-Control", res.locals.cacheControl || "public, max-age=0");
+      if (/\.gif$/i.test(file)) {
+        const type = contentTypeFromSignature(file);
+        if (type) res.setHeader("Content-Type", type);
+      }
+    }
+  };
+}
+// Only the hashed Ruffle chunks are immutable; ruffle.js keeps a stable name
+// and must revalidate so an upgrade reaches cached browsers.
+const ruffleStatic = compressedStatic(path.join(__dirname, "web", "ruffle"), { cacheControl: REVISIONED_CACHE });
+const ruffleLoaderStatic = compressedStatic(path.join(__dirname, "web", "ruffle"), { cacheControl: "public, max-age=0" });
+const jsonStatic = compressedStatic(path.join(__dirname, "assets", "json"), { cacheControl: "public, max-age=300" });
+app.use("/ruffle", (req, res, next) => /^\/ruffle\.js(?:\.map)?$/.test(req.path) ? ruffleLoaderStatic(req, res, next) : ruffleStatic(req, res, next));
+app.use("/ruffle", (req, res, next) => { res.locals.cacheControl = /^\/ruffle\.js(?:\.map)?$/.test(req.path) ? "public, max-age=0" : REVISIONED_CACHE; next(); }, express.static(path.join(__dirname, "web", "ruffle"), staticOptions()));
+// Legacy development leftovers that must never be downloadable.
+app.use(["/assets", "/images"], (req, res, next) => /(?:\.php|\.zip)$/i.test(req.path) ? res.status(404).send("Not Found") : next());
+app.use("/assets/json", (req, res, next) => { res.locals.cacheControl = "public, max-age=300"; next(); }, jsonStatic, express.static(path.join(__dirname, "assets", "json"), staticOptions()));
+app.use("/images", revisionedCache(IMAGE_CACHE), express.static(IMAGES_ROOT, staticOptions()));
+app.use("/assets", revisionedCache("public, max-age=3600"), express.static(path.join(__dirname, "assets"), staticOptions()));
 // Browsers request this implicitly even though the Flash shell does not use a
 // separate icon. Redirect it to the themed logo so normal page loads stay
 // free of a misleading 404 console error.
-app.get("/favicon.ico", (_req, res) => res.redirect(302, "/theme/wild-ones-turkiye-logo.png"));
-app.use(express.static(path.join(__dirname, "web")));
+app.get("/favicon.ico", (_req, res) => { res.setHeader("Cache-Control", "public, max-age=86400"); res.redirect(302, "/theme/favicon.png"); });
+// Only the active client movie is published; older builds stay in the
+// repository as build inputs and must not be loadable by URL.
+app.use((req, res, next) => /^\/gamewo[^/]*\.swf$/i.test(req.path) && req.path !== `/${GAME_SWF_FILE}` ? res.status(404).send("Not Found") : next());
+app.use(compressedStatic(path.join(__dirname, "web"), { cacheControl: "public, max-age=300" }));
+app.use(revisionedCache("public, max-age=300"), express.static(path.join(__dirname, "web"), staticOptions()));
 app.use((req, res) => res.status(404).send("Not Found"));
 app.use((error, _req, res, _next) => { console.error("web_error", error.message); res.status(500).send("Server error."); });
 
@@ -256,6 +326,10 @@ function startBridge(httpServer) {
   wss.on("connection", (ws) => {
     const bridgeId = ++bridgeSequence;
     const upstream = net.connect({ host: GAME_HOST, port: GAME_PORT });
+    // Game packets are small and latency-sensitive (shots, turns); Nagle's
+    // algorithm would hold each one for a delayed ACK on the compose network.
+    upstream.setNoDelay(true);
+    if (ws._socket && typeof ws._socket.setNoDelay === "function") ws._socket.setNoDelay(true);
     const startedAt = Date.now();
     let clientBytes = 0;
     let serverBytes = 0;
@@ -290,7 +364,10 @@ function startBridge(httpServer) {
         return;
       }
       serverBackpressureSince = 0;
-      const data = serverQueue.shift();
+      // Merge whatever accumulated while the previous send was in flight so a
+      // burst (turn change + health + world state) costs one WebSocket frame.
+      // The game framing is length-prefixed, so chunk boundaries never matter.
+      const data = serverQueue.length === 1 ? serverQueue.shift() : Buffer.concat(serverQueue.splice(0, serverQueue.length));
       serverQueueBytes -= data.length;
       serverSendActive = true;
       ws.send(data, { binary: true }, (error) => {
@@ -341,6 +418,8 @@ async function start() {
   server = http.createServer(app);
   startBridge(server);
   await new Promise((resolve) => server.listen(PORT, "0.0.0.0", resolve));
+  ruffleStatic.warm(fs.readdirSync(path.join(__dirname, "web", "ruffle")).filter((file) => /\.(?:wasm|js)$/.test(file) && file !== "ruffle.js"));
+  ruffleLoaderStatic.warm(["ruffle.js"]);
   console.log(`web listening on ${PORT} buildId=${BUILD_INFO.buildId} swf=${BUILD_INFO.swf && BUILD_INFO.swf.sha256 || "unknown"}`);
 }
 async function shutdown() { if (server) await new Promise((resolve) => server.close(resolve)); if (mongoClient) await mongoClient.close(); }

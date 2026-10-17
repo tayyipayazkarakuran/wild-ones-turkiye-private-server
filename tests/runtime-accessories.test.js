@@ -141,11 +141,12 @@ test("legacy raffle charges nine treats, grants Platypus once, and replays dupli
   assert.deepEqual(fixture.sent.at(-1).finalReward, { platypus: 1 });
 });
 
-test("30 Hz presentation preserves the authored 24 Hz animation clock", () => {
+test("24 Hz presentation matches the authored 24 Hz animation clock", () => {
   const web = fs.readFileSync(path.join(root, "web", "app.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-ruffle-v26.js"), "utf8");
-  assert.match(web, /frameRate:30/);
-  assert.doesNotMatch(web, /frameRate:60/);
+  assert.match(web, /frameRate:24/);
+  assert.match(web, /quality:"medium"/);
+  assert.doesNotMatch(web, /frameRate:(?:30|60)/);
   assert.match(build, /LEGACY_ANIMATION_FPS:Number = 24/);
   assert.match(build, /getTimer\(\) - legacyAnimationStartedAt/);
   assert.match(build, /48 \* _loc5_ \/ 1000/);

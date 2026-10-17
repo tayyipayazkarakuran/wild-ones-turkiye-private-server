@@ -3,6 +3,7 @@
 const { STARTER_WEAPON_COUNTS } = require("./profile");
 const { normalizeProfileState, comparePetIds } = require("./profile-state");
 const { sanitizeEquippedAccessories } = require("./accessory-bonuses");
+const { V26_MAP_NAMES, V26_FREE_MAP_NAMES } = require("./map-manifest");
 
 // The original SWF uses compact two-letter inventory keys. Keep canonical
 // names in Mongo/server code, but send this exact compatibility vocabulary in
@@ -68,9 +69,29 @@ function normalizedAllowedMaps(value) {
   const maps = {};
   for (const name of names) {
     const normalized = String(name || "").trim();
-    if (normalized) maps[normalized] = normalized;
+    // Old profiles can carry retired map names the movie cannot render.
+    if (normalized && V26_MAP_NAMES.includes(normalized)) maps[normalized] = normalized;
   }
+  for (const name of V26_FREE_MAP_NAMES) maps[name] = name;
   return maps;
+}
+
+// Server bookkeeping that the movie never reads. `transactions` grows with
+// every purchase, so sending it made each profile packet larger over time.
+const SERVER_ONLY_FIELDS = ["transactions", "passwordHash", "serialNumber", "_id", "gkey", "progressionDirty"];
+// Fields that describe only the owner's private account state. Room rosters
+// (startGame/changeTurn playerlist) go to every opponent and must omit them.
+const PRIVATE_FIELDS = ["snum", "collections", "promos", "mysteryGift", "idleGift", "combos", "hotkeys",
+  "cookingFoods", "eatenFoods", "weaponUnlocks", "online"];
+
+function publicPlayerRecord(player) {
+  const source = player && typeof player === "object" ? player : {};
+  const record = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (SERVER_ONLY_FIELDS.includes(key) || PRIVATE_FIELDS.includes(key)) continue;
+    record[key] = value;
+  }
+  return record;
 }
 
 // The database retains readable canonical fields.  This adapter is the sole
@@ -80,6 +101,9 @@ function playerWireDto(player, overrides = {}) {
   const source = player && typeof player === "object" ? player : {};
   normalizeProfileState(source);
   const dto = Object.assign({}, source, overrides);
+  for (const field of SERVER_ONLY_FIELDS) {
+    if (!Object.hasOwn(overrides, field)) delete dto[field];
+  }
   dto.time = Date.now();
   dto.statPoints = asNonNegativeInt(source.statPoints, 50);
   dto.st = dto.statPoints;
@@ -143,4 +167,4 @@ function playerWireDto(player, overrides = {}) {
   return dto;
 }
 
-module.exports = { playerWireDto, asNonNegativeInt, normalizedMedals, normalizedWeapons, normalizedWeaponEquip, normalizedAllowedMaps, flashWeaponInventory, FLASH_WEAPON_ALIASES };
+module.exports = { playerWireDto, publicPlayerRecord, SERVER_ONLY_FIELDS, PRIVATE_FIELDS, asNonNegativeInt, normalizedMedals, normalizedWeapons, normalizedWeaponEquip, normalizedAllowedMaps, flashWeaponInventory, FLASH_WEAPON_ALIASES };

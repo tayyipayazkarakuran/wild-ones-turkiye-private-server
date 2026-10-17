@@ -1,11 +1,16 @@
 "use strict";
 
+var DEBUG = process.env.DEBUG === 'true';
+
 const MAX_BOT_TURN_MS = 7500;
+// Renderers count down before the first turn of a match; a bot acting on
+// the server during that window was invisible to everybody.
+const FIRST_TURN_GRACE_MS = 2500;
 const BOT_WEAPONS_LIST = [
     "mortar", "grenade", "minigun", "marshmallow", "chainsaw", "multishot",
     "ninjastar", "tornadogrenade", "mirv", "shuriken", "drill", "goo",
     "lasercannon", "dart", "gravbubble", "kame", "freeze", "snowman",
-    "acidcloud", "boomerang"
+    "acidcloud", "boomerang", "shotgun"
 ];
 
 const SPLASH_SAFE_DISTANCE = Object.freeze({
@@ -14,7 +19,7 @@ const SPLASH_SAFE_DISTANCE = Object.freeze({
 });
 const DIRECT_WEAPONS = new Set([
     "minigun", "marshmallow", "chainsaw", "lasercannon", "gravbubble",
-    "kame", "freeze", "snowman", "acidcloud"
+    "kame", "freeze", "snowman", "acidcloud", "shotgun"
 ]);
 // Drill is the deliberate answer to sealed cave geometry. Its projectile
 // removes terrain while travelling, so terrain intersections must not be
@@ -22,10 +27,29 @@ const DIRECT_WEAPONS = new Set([
 const PENETRATING_WEAPONS = new Set(["drill"]);
 const CLOSE_RANGE_LIMIT = Object.freeze({
     chainsaw: 145,
+    shotgun: 460,
     marshmallow: 625
 });
+// Tactical weapon families. A turn first picks an intent (melee, close
+// combat, ranged artillery...) and then prefers weapons from that family,
+// so bots visibly switch between melee, spread guns and long-range shots.
+const WEAPON_CLASSES = Object.freeze({
+    melee: ["chainsaw"],
+    close: ["shotgun", "minigun", "marshmallow"],
+    direct: ["lasercannon", "kame", "freeze", "gravbubble", "snowman", "acidcloud"],
+    lob: ["mortar", "grenade", "multishot", "ninjastar", "tornadogrenade", "mirv", "shuriken", "goo", "dart", "boomerang"],
+    bore: ["drill"]
+});
+// Server-side walking speed is about 110 px/s; movement legs are bounded so
+// a bot always leaves time to aim and fire within its turn.
+const MAX_MOVE_MS = 2600;
+const MOVE_REPLAN_MS = 300;
+const STUCK_CHECK_MS = 450;
+const MELEE_REACH = 120;
+const SAFE_SPLASH_GAP = 360;
 const DEFAULT_PROJECTILE_SPEED = 1.5;
 const DEFAULT_PROJECTILE_GRAVITY = 0.0005;
+const DEFAULT_WIND_RESISTANCE = 0.0001;
 const PHYSICS_DT = 10;
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -62,9 +86,31 @@ class BotController {
                 Number(client.avatar.X) > Number(field.width || 2800) + 50 ||
                 Number(client.avatar.Y) < -120 ||
                 Number(client.avatar.Y) > Number(field.height || 1400) + 10)) return false;
-            const ownTeam = bot.player && bot.player.team;
-            const targetTeam = client.player && client.player.team;
-            return ownTeam == null || targetTeam == null || ownTeam !== targetTeam;
+            return !this.isAlly(bot, client);
+        });
+    }
+
+    isAlly(bot, other) {
+        if (!bot || !other || bot === other) return false;
+        if (this.slot.teamMode && typeof this.slot.getTeamId === "function") {
+            // Teams are assigned by roster order (getTeamId); player.team was
+            // never populated, so team-mode bots used to shoot teammates.
+            const ownTeam = this.slot.getTeamId(bot.player.id);
+            const otherTeam = this.slot.getTeamId(other.player.id);
+            return ownTeam >= 0 && ownTeam === otherTeam;
+        }
+        const ownTeam = bot.player && bot.player.team;
+        const targetTeam = other.player && other.player.team;
+        return ownTeam != null && targetTeam != null && ownTeam === targetTeam;
+    }
+
+    endangersAlly(bot, plan, weapon) {
+        if (!plan || !Number.isFinite(Number(plan.impactX)) || !Number.isFinite(Number(plan.impactY))) return false;
+        const splash = Math.max(0, Math.min(450, Number(this.weaponProperties(weapon).R2 || 0)));
+        if (splash <= 0) return false;
+        return Object.values(this.slot.clients).some((client) => {
+            if (!client || client === bot || !client.avatar || client.isDead() || !this.isAlly(bot, client)) return false;
+            return Math.hypot(Number(client.avatar.X) - plan.impactX, Number(client.avatar.Y) - plan.impactY) <= splash + 45;
         });
     }
 
@@ -98,6 +144,9 @@ class BotController {
         const gravity = Number.isFinite(Number(properties.gravity))
             ? Number(properties.gravity)
             : DEFAULT_PROJECTILE_GRAVITY;
+        // Same air resistance as the renderer's projectiles (wind itself is
+        // rolled per turn on the client and is not modelled here).
+        const windR = Number.isFinite(Number(properties.windR)) ? Number(properties.windR) : DEFAULT_WIND_RESISTANCE;
         const targetRadius = Math.max(20, Number(target.avatar.boundRadius || 25));
         const splashRadius = Math.max(0, Math.min(450, Number(properties.R2 || 0)));
         const muzzleLength = Math.max(35, Number(bot.avatar.gunLength || 45));
@@ -111,7 +160,8 @@ class BotController {
         const field = this.slot.field;
 
         for (let step = 0; step < 900; step++) {
-            vy += gravity * PHYSICS_DT;
+            vx += -vx * PHYSICS_DT * windR;
+            vy += (gravity - vy * windR) * PHYSICS_DT;
             x += vx * PHYSICS_DT;
             y += vy * PHYSICS_DT;
             const targetDistance = Math.hypot(target.avatar.X - x, target.avatar.Y - y);
@@ -210,9 +260,11 @@ class BotController {
                 score: 0
             };
         }
-        return this.planBallisticShot(bot, target, weapon, {
+        const plan = this.planBallisticShot(bot, target, weapon, {
             ignoreTerrain: PENETRATING_WEAPONS.has(weapon)
         });
+        if (plan && this.endangersAlly(bot, plan, weapon)) return null;
+        return plan;
     }
 
     initializeBag(bot) {
@@ -237,6 +289,140 @@ class BotController {
         return !Object.prototype.hasOwnProperty.call(SPLASH_SAFE_DISTANCE, weapon) || distance >= SPLASH_SAFE_DISTANCE[weapon];
     }
 
+    weaponClass(weapon) {
+        for (const [family, members] of Object.entries(WEAPON_CLASSES)) {
+            if (members.includes(weapon)) return family;
+        }
+        return "lob";
+    }
+
+    availableWeapons(bot) {
+        const equipped = bot.player && Array.isArray(bot.player.userWeaponsEquipped) ? bot.player.userWeaponsEquipped : [];
+        const roster = equipped.length ? equipped : BOT_WEAPONS_LIST;
+        return roster.filter((type) => this.slot.WOPW.weaponsObj[type]);
+    }
+
+    // Picks a plannable weapon from the preferred families first (in a
+    // seeded order that avoids repeating the previous turn's weapon), then
+    // falls back to the regular shuffled bag.
+    choosePreferredWeapon(bot, target, families) {
+        const available = this.availableWeapons(bot);
+        const recent = Array.isArray(bot._botRecentWeapons) ? bot._botRecentWeapons : [];
+        for (const family of families || []) {
+            const members = available.filter((type) => this.weaponClass(type) === family);
+            for (let i = members.length - 1; i > 0; i--) {
+                const j = Math.floor(nextRandom(bot) * (i + 1));
+                [members[i], members[j]] = [members[j], members[i]];
+            }
+            members.sort((a, b) => recent.indexOf(a) - recent.indexOf(b));
+            for (const weapon of members) {
+                const plan = this.planShot(bot, target, weapon);
+                if (plan) {
+                    bot._botShotPlan = plan;
+                    return weapon;
+                }
+            }
+        }
+        return this.chooseWeapon(bot, target);
+    }
+
+    // Like choosePreferredWeapon but without the bag fallback: used while
+    // walking to find out whether the wanted family can already hit.
+    findPlannableWeapon(bot, target, families) {
+        const available = this.availableWeapons(bot);
+        for (const family of families) {
+            for (const weapon of available.filter((type) => this.weaponClass(type) === family)) {
+                const plan = this.planShot(bot, target, weapon);
+                if (plan) {
+                    bot._botShotPlan = plan;
+                    return weapon;
+                }
+            }
+        }
+        return null;
+    }
+
+    // Last resort before skipping a turn: Drill bores to any target.
+    lastResortWeapon(bot, target) {
+        if (!this.slot.WOPW.weaponsObj.drill || !this.availableWeapons(bot).includes("drill")) return null;
+        const plan = this.planShot(bot, target, "drill");
+        if (!plan) return null;
+        bot._botShotPlan = plan;
+        return "drill";
+    }
+
+    rememberWeapon(bot, weapon) {
+        if (!weapon) return;
+        const recent = Array.isArray(bot._botRecentWeapons) ? bot._botRecentWeapons : [];
+        bot._botRecentWeapons = recent.filter((type) => type !== weapon).concat(weapon).slice(-4);
+    }
+
+    hasGroundAhead(bot, direction) {
+        const field = this.slot.field;
+        if (!field || !field.bitmapData || typeof field.checkFieldCollisionPoint !== "function") return true;
+        const radius = Math.max(18, Number(bot.avatar.boundRadius || 25));
+        const frontX = Math.round(Number(bot.avatar.X) + direction * (radius + 18));
+        const feetY = Number(bot.avatar.Y) + radius;
+        if (frontX < 40 || frontX > Number(field.width || 2800) - 40) return false;
+        // A drop deeper than ~70 px or into the bottom water band is a cliff.
+        for (let dy = -10; dy <= 70; dy += 5) {
+            const y = Math.round(feetY + dy);
+            if (y >= Number(field.height || 1400) - 120) return false;
+            if (field.checkFieldCollisionPoint(frontX, y)) return true;
+        }
+        return false;
+    }
+
+    // Chooses what this turn is about. Distances use the walking speed:
+    // a rush is only planned when the target can be reached in one leg.
+    chooseIntent(bot, target, distance, dx, dy) {
+        const available = this.availableWeapons(bot);
+        const has = (family) => available.some((type) => this.weaponClass(type) === family);
+        const toward = dx >= 0 ? 1 : -1;
+        const roll = nextRandom(bot);
+        const level = Math.abs(dy) < 110;
+        if (distance <= MELEE_REACH && has("melee")) {
+            // Mostly melee up close, but sometimes a point-blank spread gun.
+            return { mode: "melee", families: roll < 0.7 ? ["melee", "close"] : ["close", "melee"], move: null };
+        }
+        if (distance < 280) {
+            if ((has("melee") || has("close")) && (roll < 0.6 || !this.hasGroundAhead(bot, -toward))) {
+                return {
+                    mode: "rush",
+                    families: ["melee", "close", "direct"],
+                    move: level && has("melee") && this.hasGroundAhead(bot, toward)
+                        ? { direction: toward, until: "reach", goal: MELEE_REACH * 0.85 }
+                        : null
+                };
+            }
+            if (this.hasGroundAhead(bot, -toward)) {
+                return {
+                    mode: "retreat",
+                    families: ["lob", "direct", "close"],
+                    move: { direction: -toward, until: "gap", goal: SAFE_SPLASH_GAP }
+                };
+            }
+            return { mode: "close", families: ["close", "direct", "melee"], move: null };
+        }
+        if (distance < 560 && level && has("melee") && roll < 0.3 && this.hasGroundAhead(bot, toward)) {
+            return {
+                mode: "rush",
+                families: ["melee", "close", "direct"],
+                move: { direction: toward, until: "reach", goal: MELEE_REACH * 0.85 }
+            };
+        }
+        if (distance < 700 && has("close") && roll < 0.55) {
+            return { mode: "close", families: ["close", "direct", "lob"], move: null };
+        }
+        return {
+            mode: "ranged",
+            // Drill ("bore") is never a preferred family: it would win every
+            // sealed geometry. It stays in the bag and as a throttled fallback.
+            families: roll < 0.35 ? ["direct", "lob"] : ["lob", "direct"],
+            move: null
+        };
+    }
+
     chooseWeapon(bot, target) {
         this.initializeBag(bot);
         const distance = Math.hypot(target.avatar.X - bot.avatar.X, target.avatar.Y - bot.avatar.Y);
@@ -255,7 +441,12 @@ class BotController {
         }
         // Prefer a validated terrain-boring path in sealed maps. Minigun is
         // last and is used only when its direct line-of-sight check succeeded.
+        const recent = Array.isArray(bot._botRecentWeapons) ? bot._botRecentWeapons : [];
+        // Drill bores through anything, so it would win every sealed-off
+        // geometry. After a recent drill, prefer walking to find a new line.
+        const drillRecently = recent.slice(-2).includes("drill") && nextRandom(bot) < 0.75;
         for (const fallback of ["drill", "mortar", "minigun"]) {
+            if (fallback === "drill" && drillRecently) continue;
             if (this.slot.WOPW.weaponsObj[fallback]) {
                 const plan = this.planShot(bot, target, fallback);
                 if (plan) {
@@ -291,65 +482,101 @@ class BotController {
         }).sort((a, b) => a.distance - b.distance);
         if (!targets.length) return null;
 
-        const choice = targets.find((candidate) =>
+        let choice = targets.find((candidate) =>
             String(candidate.target.player.id) === String(bot._assignedBotTargetId)
         ) || targets[0];
-        let weapon = bot._assignedBotWeapon || this.chooseWeapon(bot, choice.target);
+        // Occasionally finish off a weakened enemy instead of the nearest one.
+        const weakest = targets.filter((candidate) => candidate.distance < 1100)
+            .sort((a, b) => Number(a.target.avatar.hp || 100) - Number(b.target.avatar.hp || 100))[0];
+        if (weakest && weakest !== choice && nextRandom(bot) < 0.25) choice = weakest;
+
+        const intent = this.chooseIntent(bot, choice.target, choice.distance, choice.dx, choice.dy);
+        let weapon = this.choosePreferredWeapon(bot, choice.target, intent.families);
         let shotPlan = weapon ? (this.planShot(bot, choice.target, weapon) || bot._botShotPlan) : null;
-        if (!shotPlan) {
-            weapon = this.chooseWeapon(bot, choice.target);
-            shotPlan = weapon ? (this.planShot(bot, choice.target, weapon) || bot._botShotPlan) : null;
-        }
+        let move = intent.move;
         if (!weapon || !shotPlan) {
-            return {
-                bot,
-                target: choice.target,
-                weapon: null,
-                shotPlan: null,
-                phase: "skip",
-                dueAt: now + 650,
-                expiresAt: now + MAX_BOT_TURN_MS,
-                direction: choice.dx >= 0 ? 1 : -1,
-                jumped: false,
-                fired: false,
-                aimStep: 0
-            };
+            // Nothing can hit from here: walk toward the target (or away if it
+            // is on top of us) and keep re-planning until a shot opens up.
+            const toward = choice.dx >= 0 ? 1 : -1;
+            const direction = choice.distance < 220 ? -toward : toward;
+            if (!move && this.hasGroundAhead(bot, direction)) move = { direction, until: "shot", goal: 0 };
+            if (!move) {
+                weapon = this.lastResortWeapon(bot, choice.target);
+                shotPlan = weapon ? bot._botShotPlan : null;
+            }
+            if (!move && !weapon) {
+                return {
+                    bot,
+                    target: choice.target,
+                    weapon: null,
+                    shotPlan: null,
+                    intent: intent.mode,
+                    phase: "skip",
+                    dueAt: now + 650,
+                    expiresAt: now + MAX_BOT_TURN_MS,
+                    direction,
+                    jumped: false,
+                    fired: false,
+                    aimStep: 0
+                };
+            }
         }
-        const towardTarget = choice.dx >= 0 ? 1 : -1;
-        const moveChance = choice.distance < 180 ? 0.55 : (choice.distance > 700 ? 0.45 : 0.30);
-        const shouldMove = nextRandom(bot) < moveChance;
-        const directionRoll = nextRandom(bot);
-        const direction = choice.distance < 180 || directionRoll < 0.12
-            ? -towardTarget
-            : (directionRoll > 0.88 ? (nextRandom(bot) < 0.5 ? -1 : 1) : towardTarget);
-        const thinkDelay = 450 + Math.round(nextRandom(bot) * 700);
-        const moveDuration = 450 + Math.round(nextRandom(bot) * 650);
+        const toward = choice.dx >= 0 ? 1 : -1;
+        const closeIntent = intent.mode === "close" || intent.mode === "rush";
+        if (!move && closeIntent && weapon && !["melee", "close"].includes(this.weaponClass(weapon)) &&
+            choice.distance < 760 && this.hasGroundAhead(bot, toward)) {
+            // A close-combat turn whose spread guns have no line from here
+            // walks in until one does instead of settling for artillery.
+            move = { direction: toward, until: "shot", goal: 0, families: ["close", "melee"] };
+        }
+        if (!move && intent.mode === "ranged") {
+            const roll = nextRandom(bot);
+            if (choice.distance < 450 && roll < 0.35 && this.hasGroundAhead(bot, -toward)) {
+                // Splash weapons want room: back off before shooting.
+                move = { direction: -toward, until: "gap", goal: SAFE_SPLASH_GAP + 120 };
+            } else if (choice.distance > 650 && roll < 0.45 && this.hasGroundAhead(bot, toward)) {
+                // Press forward for a short leg, stopping early if it gets close.
+                move = { direction: toward, until: "advance", goal: 480, duration: 600 + Math.round(nextRandom(bot) * 900) };
+            }
+        }
+        if (!move && nextRandom(bot) < 0.2) {
+            // A short repositioning step keeps bots from standing still all
+            // match, but never walks off a ledge.
+            const direction = nextRandom(bot) < 0.5 ? -1 : 1;
+            if (this.hasGroundAhead(bot, direction)) {
+                move = { direction, until: "time", goal: 0, duration: 350 + Math.round(nextRandom(bot) * 450) };
+            }
+        }
+        const thinkDelay = 300 + Math.round(nextRandom(bot) * 400);
         return {
             bot,
             target: choice.target,
             weapon,
             shotPlan,
+            intent: intent.mode,
+            families: intent.families,
             phase: "thinking",
-            nextPhase: shouldMove ? "moving" : "equip",
+            nextPhase: move ? "moving" : "equip",
             dueAt: now + thinkDelay,
             expiresAt: now + MAX_BOT_TURN_MS,
-            direction,
-            moveDuration,
+            direction: move ? move.direction : (choice.dx >= 0 ? 1 : -1),
+            move,
+            moveDuration: move && move.duration ? move.duration : MAX_MOVE_MS,
             jumpAt: 0,
-            wantsJump: nextRandom(bot) < 0.18,
+            wantsJump: nextRandom(bot) < 0.15,
             jumped: false,
             fired: false,
             aimStep: 0,
             aimSteps: 6,
             aimStartAngle: NaN,
             aimCorrection: (nextRandom(bot) - 0.5) * 0.28,
-            aimInterval: 180 + Math.round(nextRandom(bot) * 80)
+            aimInterval: 120 + Math.round(nextRandom(bot) * 60)
         };
     }
 
     sendMove(bot, direction) {
         const packet = { id: bot.player.id, command: direction > 0 ? "move_right" : "move_left" };
-        console.log(">> Server bot move: " + bot.player.id + "; direction=" + (direction > 0 ? "right" : "left"));
+        if(DEBUG) console.log(">> Server bot move: " + bot.player.id + "; direction=" + (direction > 0 ? "right" : "left"));
         if (direction > 0) this.slot.WOPW.packetHandler.handleMoveRight(bot, packet);
         else this.slot.WOPW.packetHandler.handleMoveLeft(bot, packet);
     }
@@ -385,11 +612,78 @@ class BotController {
         this.reset();
     }
 
+    stopMoving(state, bot, now) {
+        this.slot.WOPW.packetHandler.handleMoveStop(bot, { id: bot.player.id, command: "move_stop" });
+        state.phase = "equip";
+        state.dueAt = now + 250;
+    }
+
+    // Re-evaluated on every room update while walking. Returns true when the
+    // movement leg ended (the caller then waits for the equip phase).
+    updateMovement(state, bot, now) {
+        const move = state.move || { until: "time" };
+        const target = state.target && !state.target.isDead() ? state.target : null;
+        const distance = target ? Math.hypot(target.avatar.X - bot.avatar.X, target.avatar.Y - bot.avatar.Y) : Infinity;
+        let done = false;
+        if (!this.hasGroundAhead(bot, state.direction)) {
+            done = true;
+        } else if (move.until === "reach" && distance <= move.goal) {
+            done = true;
+        } else if (move.until === "gap" && distance >= move.goal) {
+            done = true;
+        } else if (move.until === "advance" && distance <= move.goal) {
+            done = true;
+        } else if (move.until === "reach" && target &&
+            Math.sign(target.avatar.X - bot.avatar.X) !== state.direction && Math.abs(target.avatar.X - bot.avatar.X) > 10) {
+            // Walked past the target (it moved or we overshot).
+            done = true;
+        } else if (move.until === "shot" && now >= Number(state.nextReplanAt || 0) && target) {
+            state.nextReplanAt = now + MOVE_REPLAN_MS;
+            const families = move.families || state.families || ["lob", "direct", "close"];
+            const weapon = move.families
+                ? this.findPlannableWeapon(bot, target, move.families)
+                : this.choosePreferredWeapon(bot, target, families);
+            const plan = weapon ? (this.planShot(bot, target, weapon) || bot._botShotPlan) : null;
+            if (plan) {
+                state.weapon = weapon;
+                state.shotPlan = plan;
+                state.reselected = true;
+                done = true;
+            }
+        }
+        if (!done && now >= Number(state.stuckCheckAt || 0)) {
+            const progressed = Math.abs(Number(bot.avatar.X) - Number(state.stuckX)) >= 3;
+            state.stuckCheckAt = now + STUCK_CHECK_MS;
+            state.stuckX = Number(bot.avatar.X);
+            if (!progressed) {
+                if (!state.jumped && this.shouldJump(bot, state.direction, true)) {
+                    this.sendJump(bot);
+                    state.jumped = true;
+                } else if (now - Number(state.moveStartedAt || now) > STUCK_CHECK_MS) {
+                    done = true;
+                }
+            }
+        }
+        if (!done && !state.jumped && now >= state.jumpAt && this.shouldJump(bot, state.direction, state.wantsJump)) {
+            this.sendJump(bot);
+            state.jumped = true;
+        }
+        if (done || now >= state.dueAt) {
+            this.stopMoving(state, bot, now);
+            return true;
+        }
+        return false;
+    }
+
     update() {
         if (!this.slot.isRunning()) return this.reset();
         const bot = this.slot.clients[this.slot.currentPlayer];
         if (!bot || !bot.isBot || bot.isDead()) return this.reset();
+        // A respawned bot is not in any renderer's world until every client
+        // has acknowledged it; acting earlier moved/fired an invisible avatar.
+        if (bot.respawnReady === false) return;
         const now = Date.now();
+        if (now < Number(this.slot.botActionNotBefore || 0)) return;
         if (!this.state || this.state.bot !== bot) {
             this.state = this.begin(bot, now);
             if (!this.state) return this.finishTurn(bot);
@@ -401,6 +695,10 @@ class BotController {
             // A fired projectile owns its natural `timeAfter` turn close.  A
             // forced turn_complete races MIRV/boomerang effects in Ruffle.
             if (state.fired) return;
+            if (state.phase === "moving") {
+                this.slot.WOPW.packetHandler.handleMoveStop(bot, { id: bot.player.id, command: "move_stop" });
+            }
+            if (!state.weapon) return this.finishTurn(bot);
             const expiryTargets = this.livingTargets(bot);
             const expiryTarget = state.target && !state.target.isDead() && expiryTargets.includes(state.target)
                 ? state.target
@@ -418,10 +716,8 @@ class BotController {
             state.phase = "waiting";
             return;
         }
-        if (state.phase === "moving" && !state.jumped && now >= state.jumpAt &&
-            this.shouldJump(bot, state.direction, state.wantsJump)) {
-            this.sendJump(bot);
-            state.jumped = true;
+        if (state.phase === "moving") {
+            if (this.updateMovement(state, bot, now)) return;
         }
         if (now < state.dueAt) return;
         if (state.phase === "thinking") {
@@ -430,6 +726,10 @@ class BotController {
                 state.phase = "moving";
                 state.jumpAt = now + Math.min(320, Math.round(state.moveDuration * 0.35));
                 state.dueAt = now + state.moveDuration;
+                state.moveStartedAt = now;
+                state.nextReplanAt = now + MOVE_REPLAN_MS;
+                state.stuckCheckAt = now + STUCK_CHECK_MS;
+                state.stuckX = Number(bot.avatar.X);
             } else {
                 state.phase = "equip";
                 state.dueAt = now + 100;
@@ -437,10 +737,33 @@ class BotController {
             return;
         }
         if (state.phase === "moving") {
-            this.slot.WOPW.packetHandler.handleMoveStop(bot, { id: bot.player.id, command: "move_stop" });
-            state.phase = "equip"; state.dueAt = now + 250; return;
+            this.stopMoving(state, bot, now);
+            return;
         }
         if (state.phase === "equip") {
+            // The position changed while moving; pick the weapon for the
+            // intent from where the bot actually stands now.
+            if (state.move && !state.reselected) {
+                state.reselected = true;
+                const target = state.target && !state.target.isDead() ? state.target : this.livingTargets(bot)[0];
+                if (target) {
+                    state.target = target;
+                    const distance = Math.hypot(target.avatar.X - bot.avatar.X, target.avatar.Y - bot.avatar.Y);
+                    const families = state.intent === "rush" && distance <= MELEE_REACH * 1.2
+                        ? ["melee", "close"]
+                        : (state.families || ["lob", "direct"]);
+                    const weapon = this.choosePreferredWeapon(bot, target, families) || this.lastResortWeapon(bot, target);
+                    if (weapon) {
+                        state.weapon = weapon;
+                        state.shotPlan = this.planShot(bot, target, weapon) || bot._botShotPlan;
+                    }
+                }
+                if (!state.weapon) {
+                    state.phase = "skip";
+                    state.dueAt = now;
+                    return;
+                }
+            }
             this.slot.WOPW.packetHandler.handleEquip(bot, {
                 id: bot.player.id, command: "equip", value: state.weapon
             });
@@ -555,7 +878,8 @@ class BotController {
                 value: String(finalPlan.angle),
                 power: String(clamp(Number(finalPlan.power || 1), 0.08, 1))
             });
-            console.log(">> Server bot action: " + bot.player.id + "; weapon=" + state.weapon);
+            if(DEBUG) console.log(">> Server bot action: " + bot.player.id + "; weapon=" + state.weapon + "; intent=" + state.intent);
+            this.rememberWeapon(bot, state.weapon);
             this.slot.WOPW.packetHandler.handleProjectile(bot, { id: bot.player.id, command: "projectile", ammo_type: state.weapon });
             state.fired = true; state.phase = "waiting"; return;
         }

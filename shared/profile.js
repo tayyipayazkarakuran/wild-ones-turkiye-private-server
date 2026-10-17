@@ -43,8 +43,8 @@ function canonicalName(value) {
 function validateCredentials(dname, password) {
   const name = normalizeName(dname);
   const passwordBytes = Buffer.byteLength(String(password || ""), "utf8");
-  if (!NAME_PATTERN.test(name)) return { ok: false, reason: "Geçerli bir kullanıcı adı girin." };
-  if (passwordBytes < 8 || passwordBytes > 72) return { ok: false, reason: "Parola 8-72 byte olmalıdır." };
+  if (!NAME_PATTERN.test(name)) return { ok: false, code: "invalid_name", reason: "Usernames are 3-16 letters, numbers, spaces, _ or -." };
+  if (passwordBytes < 8 || passwordBytes > 72) return { ok: false, code: "invalid_password", reason: "Passwords must be 8-72 characters." };
   return { ok: true, dname: name, dnameCanonical: canonicalName(name) };
 }
 

@@ -9,6 +9,7 @@ var BotController = require('./bot.controller.js');
 var Progression = require('../shared/progression.js');
 var Levels = require('../shared/levels.js');
 var calculateAccessoryBonuses = require('../shared/accessory-bonuses.js').calculateAccessoryBonuses;
+var publicPlayerRecord = require('../shared/player-wire.js').publicPlayerRecord;
 
 
 var DEBUG = process.env.DEBUG === 'true' || false;
@@ -137,6 +138,9 @@ class Slot{
 
         this.startingTime = 0;
         this.tick         = 0;
+        this.lastUpdateAt = 0;
+        this.lastTickStep = 10;
+        this.lastSynchTickSentAt = 0;
         this.turnEndTick  = 0;
         this.turnHardEndTick = 0;
         this.turnCleanupEpoch = -1;
@@ -182,6 +186,8 @@ class Slot{
         this.worldStateSequence = 0;
         this.lastWorldStateAtTick = -Infinity;
         this.lastWorldTerrainBroadcastRevision = -1;
+        this.lastWorldTerrainBroadcastCount = 0;
+        this.worldStateForcePending = false;
         this.combatScores = Object.create(null);
         this.projectileSequence = 0;
         this.botPendingProjectile = null;
@@ -216,6 +222,14 @@ class Slot{
         this.botFillLastHumanAt = 0;
         this.botFillScheduled = false;
         this.botFillCompleted = false;
+        if(this.startErrorResetTimer) clearTimeout(this.startErrorResetTimer);
+        this.startErrorResetTimer = null;
+        // Lobby players sent to this room by quick play / join hold their seat
+        // until their game socket authenticates (or the hold expires). Without
+        // it, bots or a second lobby player could take the seat meanwhile.
+        this.seatReservations = Object.create(null);
+        this.lastReservationAt = 0;
+        this.countdownExtensions = 0;
         this.nativeBotAICapable = false;
         this.nativeBotAI = false;
         this.nativeBotRosterReady = false;
@@ -280,9 +294,19 @@ class Slot{
         this.checkGame();
 
         if(this.isRunning()){
-            this.tick += 10;
+            // One tick is 10 ms. Advance by the wall-clock time actually
+            // elapsed so a stalled event loop cannot stretch turn deadlines,
+            // clamped so a long pause never skips a whole turn at once.
+            var now = Date.now();
+            var tickStep = Number(this.lastUpdateAt) > 0
+                ? Math.max(1, Math.min(50, Math.round((now - this.lastUpdateAt) / 10)))
+                : Math.round(this.updateIntervalMs() / 10);
+            this.lastUpdateAt = now;
+            this.tick += tickStep;
+            this.lastTickStep = tickStep;
 
-            if(this.tick % 50 == 0){
+            if(this.tick - Number(this.lastSynchTickSentAt || 0) >= 50){
+                this.lastSynchTickSentAt = this.tick - (this.tick % 50);
                 if(DEBUG)
                     console.log(">> Game Tick: " + this.tick);
                 this.sendTick();
@@ -320,20 +344,89 @@ class Slot{
         }
     }
 
+    updateIntervalMs(){
+        return Number(this.WOPW && this.WOPW.updateIntervalMs) > 0 ? Number(this.WOPW.updateIntervalMs) : 100;
+    }
+
     hasLiveSupport(client){
         if(!client || !client.avatar || !this.field || !this.field.bitmapData) return false;
         var avatar = client.avatar;
-        var supportY = Number(avatar.Y) + Math.max(34, Number(avatar.boundRadius || 20) + 20);
+        // The avatar is a circle of boundRadius around (X, Y), so its feet
+        // are at Y + boundRadius. Probing 20 px below the feet reported thin
+        // platforms and crater rims as "no support" and killed resting bots.
+        var supportY = Number(avatar.Y) + Number(avatar.boundRadius || 20);
         var supportedColumns = 0;
         [-16, 0, 16].forEach(function(offset){
-            for(var dy = -4; dy <= 16; dy += 4){
+            for(var dy = -6; dy <= 14; dy += 4){
                 if(this.field.checkFieldCollisionPoint(Math.round(Number(avatar.X) + offset), Math.round(supportY + dy))){
                     supportedColumns++;
                     break;
                 }
             }
         }.bind(this));
-        return supportedColumns >= 2;
+        // One supported column is enough: physics already rests the pet on
+        // a ledge edge or stair tip; zero columns means it hangs over a hole.
+        return supportedColumns >= 1;
+    }
+
+    // Single entry point for every terrain change (renderer batches, legacy
+    // synchronization, server-side digs) so they all bump the revision that
+    // clients, respawn guards and bots converge on.
+    applyTerrainMutation(records, options){
+        if(!this.field) return 0;
+        var accepted = this.field.mergeExplosionRecords(records);
+        if(accepted <= 0) return 0;
+        var craters = Array.isArray(this.field.lastAcceptedRecords) ? this.field.lastAcceptedRecords.slice() : [];
+        this.terrainRevision = Number(this.terrainRevision || 0) + 1;
+        this.lastTerrainMutationAt = Date.now();
+        if(this.isRunning()){
+            this.applyBotExplosionImpulses(craters);
+            this.reconcileBotsAfterTerrainMutation();
+            this.scheduleWorldState();
+            this.sendBotState(false);
+        }
+        return accepted;
+    }
+
+    // Bots are simulated only here, so the knockback a renderer applies to a
+    // bot is overwritten by the next bot_state. Re-apply the original
+    // Battlefield.explode impulse model once per accepted crater.
+    applyBotExplosionImpulses(craters){
+        if(!Array.isArray(craters) || !craters.length || !this.WOPW || !this.WOPW.weaponsObj) return 0;
+        var pushed = 0;
+        for(var i = 0; i < craters.length; i++){
+            var crater = craters[i];
+            var weapon = crater && crater.type ? this.WOPW.weaponsObj[crater.type] : null;
+            if(!weapon) continue;
+            var r1 = Number(weapon.R1) || 0;
+            var r2 = Number(weapon.R2) || 0;
+            var damage = Number(weapon.damage) || 0;
+            var weaponImpulse = Number(weapon.impulse);
+            if(!(r2 > 0) || !(damage > 0)) continue;
+            if(!Number.isFinite(weaponImpulse)) weaponImpulse = 0.0007;
+            var inner = 25 + r1;
+            var outer = 25 + r2;
+            for(var id in this.clients){
+                var bot = this.clients[id];
+                if(!bot || !bot.isBot || !bot.avatar || bot.isDead() || bot.avatar.complete) continue;
+                var dx = crater.x - Number(bot.avatar.X);
+                var dy = crater.y - Number(bot.avatar.Y);
+                var d2 = dx * dx + dy * dy;
+                if(d2 === 0 || d2 > outer * outer) continue;
+                var d = Math.sqrt(d2);
+                var force = d2 < inner * inner || outer <= inner ? damage : damage * (1 - (d - inner) / (outer - inner));
+                var chassisImpulse = Number(bot.avatar.properties && bot.avatar.properties.impulse);
+                var impulse = -force * weaponImpulse * (Number.isFinite(chassisImpulse) && chassisImpulse > 0 ? chassisImpulse : 1);
+                if(!Number.isFinite(impulse) || impulse === 0) continue;
+                bot.avatar.Vx = Number(bot.avatar.Vx || 0) + (dx / d) * impulse;
+                bot.avatar.Vy = Number(bot.avatar.Vy || 0) + (dy / d) * impulse;
+                if(typeof bot.avatar.stopWalking === "function") bot.avatar.stopWalking();
+                bot._unsupportedTicks = 0;
+                pushed++;
+            }
+        }
+        if(pushed > 0) this.sendBotState(true);
+        return pushed;
     }
 
     reconcileBotsAfterTerrainMutation(){
@@ -344,7 +437,9 @@ class Slot{
             bot.avatar.stopWalking();
             bot.avatar.waitingForJump = false;
             bot.avatar.waitingForSuper = false;
-            bot.avatar.Vy = Math.max(Number(bot.avatar.Vy || 0), 0.02);
+            // Start the fall, but keep an upward knockback that was just applied.
+            var currentVy = Number(bot.avatar.Vy || 0);
+            bot.avatar.Vy = currentVy < -0.01 ? currentVy : Math.max(currentVy, 0.02);
             bot._unsupportedTicks = Math.max(1, Number(bot._unsupportedTicks || 0));
         }
     }
@@ -379,12 +474,11 @@ class Slot{
             if(!bot || !bot.isBot || !bot.avatar || bot.isDead()) continue;
             var health = this.initializeHealth(bot, false);
             try{
-                // WOPW updates rooms every 100 ms while the original physics
-                // model uses a 10 ms dt. Advancing only once per room update
-                // made unsupported bots fall at one tenth of real speed.
-                // Preserve the authored dt and use fixed substeps to avoid
-                // tunnelling through thin terrain.
-                for(var physicsStep = 0; physicsStep < 10; physicsStep++){
+                // The original physics model uses a 10 ms dt. Run one substep
+                // per elapsed room tick so bots move at real speed whatever the
+                // room update interval, without tunnelling through terrain.
+                var physicsSteps = Math.max(1, Math.min(50, Number(this.lastTickStep) || 10));
+                for(var physicsStep = 0; physicsStep < physicsSteps; physicsStep++){
                     bot.avatar.step();
                     bot.avatar.move(true);
                 }
@@ -393,6 +487,20 @@ class Slot{
                 this.recoverBot(bot, "physics_error");
                 continue;
             }
+            if(![bot.avatar.X, bot.avatar.Y, bot.avatar.Vx, bot.avatar.Vy].every(function(value){ return Number.isFinite(Number(value)); })){
+                // A NaN would serialise as null and draw the bot at (0, 0).
+                bot.avatar.Vx = 0;
+                bot.avatar.Vy = 0;
+                if(!this.recoverBot(bot, "non_finite")){
+                    var last = bot.lastFinitePosition;
+                    if(last){
+                        bot.avatar.X = last.x;
+                        bot.avatar.Y = last.y;
+                    }
+                }
+                continue;
+            }
+            bot.lastFinitePosition = { x: Number(bot.avatar.X), y: Number(bot.avatar.Y) };
             // Physics is allowed to resolve terrain, never to manufacture a
             // fall/drowning damage loop. Health remains server-authoritative.
             if(health) bot.avatar.hp = health.hp;
@@ -406,13 +514,23 @@ class Slot{
             else bot._embeddedTicks = 0;
             if(this.hasLiveSupport(bot)){
                 bot._unsupportedTicks = 0;
+                bot._unsupportedMs = 0;
             }else if(Math.abs(Number(bot.avatar.Vy || 0)) < 0.01 ||
                 bot.avatar.isWalkingLeft || bot.avatar.isWalkingRight){
                 bot._unsupportedTicks = Number(bot._unsupportedTicks || 0) + 1;
+                // Measured in time, not room updates: the loop rate changed
+                // from 10 to 20 Hz and a count silently halved the grace.
+                bot._unsupportedMs = Number(bot._unsupportedMs || 0) + physicsSteps * 10;
                 bot.avatar.stopWalking();
                 bot.avatar.Vy = Math.max(Number(bot.avatar.Vy || 0), 0.02);
             }
-            if(Number(bot._unsupportedTicks || 0) >= 15){
+            if(Number(bot._unsupportedMs || 0) >= 1500){
+                bot._unsupportedTicks = 0;
+                bot._unsupportedMs = 0;
+                // Physics is holding the bot in place on geometry too narrow
+                // for the support probe (a stair edge, a crater rim). Put it
+                // on verified ground instead of awarding a free kill.
+                if(this.recoverBot(bot, "support_lost")) continue;
                 console.warn("bot_support_lost game=" + JSON.stringify(this.gameId) + " bot=" + bot.player.id);
                 this.killWorldFall(bot, this.currentPlayer);
                 continue;
@@ -427,7 +545,14 @@ class Slot{
         // snapshot on every update. Five samples per second are enough for the
         // 24 fps renderer's velocity interpolation and halve packet/render
         // pressure without changing server physics.
-        if(!force && this.tick - this.lastBotStateAtTick < 20) return;
+        // 10 Hz while a bot is visibly moving (walking, falling, knocked
+        // back) so renderers extrapolate less; 5 Hz when everything rests.
+        var botMoving = Object.values(this.clients).some(function(client){
+            return client && client.isBot && client.avatar && !client.isDead() &&
+                (client.avatar.isWalkingLeft || client.avatar.isWalkingRight ||
+                    Math.abs(Number(client.avatar.Vx || 0)) > 0.01 || Math.abs(Number(client.avatar.Vy || 0)) > 0.01);
+        });
+        if(!force && this.tick - this.lastBotStateAtTick < (botMoving ? 10 : 20)) return;
         var bots = [];
         for(var id in this.clients){
             var bot = this.clients[id];
@@ -457,9 +582,15 @@ class Slot{
         });
     }
 
+    scheduleWorldState(){
+        this.worldStateForcePending = true;
+    }
+
     sendWorldState(force){
         if(!this.isRunning()) return;
+        if(!force && this.worldStateForcePending && this.tick - this.lastWorldStateAtTick >= 10) force = true;
         if(!force && this.tick - this.lastWorldStateAtTick < 50) return;
+        this.worldStateForcePending = false;
         this.lastWorldStateAtTick = this.tick;
         var players = [];
         for(var id in this.clients){
@@ -482,28 +613,45 @@ class Slot{
             });
         }
         var sequence = ++this.worldStateSequence;
-        var includeTerrain = force ||
-            Number(this.lastWorldTerrainBroadcastRevision) !== Number(this.terrainRevision) ||
-            sequence % 10 === 0;
-        var terrain = [];
-        if(includeTerrain && this.field && Array.isArray(this.field.explosionRecord)){
-            terrain = this.field.explosionRecord.map(function(record){
-                return [
-                    Utils.stringToInt(record[0]),
-                    Utils.stringToInt(record[1]),
-                    Utils.stringToInt(record[2])
-                ];
-            }).filter(function(record){
-                return record.every(Number.isFinite);
-            });
+        var records = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord : [];
+        var revisionChanged = Number(this.lastWorldTerrainBroadcastRevision) !== Number(this.terrainRevision);
+        // Normally only the craters added since the last broadcast are sent
+        // (terrainFrom = the revision they extend). A periodic full list lets
+        // a renderer that fell behind recover; up-to-date renderers skip it.
+        var fullTerrain = sequence % 10 === 0 || Number(this.lastWorldTerrainBroadcastRevision) < 0 ||
+            Number(this.lastWorldTerrainBroadcastCount || 0) > records.length;
+        var terrainFrom = 0;
+        var slice = [];
+        if(fullTerrain){
+            slice = records;
+        }else if(revisionChanged){
+            terrainFrom = Number(this.lastWorldTerrainBroadcastRevision);
+            slice = records.slice(Number(this.lastWorldTerrainBroadcastCount || 0));
+        }
+        var terrain = slice.map(function(record){
+            return [
+                Utils.stringToInt(record[0]),
+                Utils.stringToInt(record[1]),
+                Utils.stringToInt(record[2])
+            ];
+        }).filter(function(record){
+            return record.every(Number.isFinite);
+        });
+        if(fullTerrain || revisionChanged){
             this.lastWorldTerrainBroadcastRevision = Number(this.terrainRevision);
+            this.lastWorldTerrainBroadcastCount = records.length;
         }
         this.sendPacket({
             command: "world_state",
-            gameId: String(this.gameId),
+            // Room ids are reused between matches while the renderer keeps
+            // its last sequence/terrain revision per id. The match identity
+            // makes every new match reset that ordering state, otherwise the
+            // second match in a room ignored world_state (and its craters).
+            gameId: String(this.matchId || this.gameId),
             sequence: sequence,
             turnEpoch: Number(this.turnEpoch || 0),
             terrainRevision: Number(this.terrainRevision || 0),
+            terrainFrom: terrainFrom,
             terrain: terrain,
             players: players
         });
@@ -722,7 +870,7 @@ class Slot{
                     turnEpoch: this.turnEpoch,
                     reason: "turn_deadline"
                 });
-                console.warn(
+                if(DEBUG) console.warn(
                     "turn_effect_cleanup game=" + JSON.stringify(this.gameId) +
                     " epoch=" + this.turnEpoch +
                     " player=" + this.currentPlayer
@@ -746,7 +894,8 @@ class Slot{
             this.currentTurnDeathHold = null;
             this.turnCleanupEpoch = -1;
             this.turnCleanupDeadline = 0;
-            this.setNextTurn(100);
+            // The cleanup grace above already gave renderers time to settle.
+            this.setNextTurn(50);
             this.sendChangeTurn();
         }
     }
@@ -781,35 +930,33 @@ class Slot{
             // new lobby created the observed second 5 -> 4 countdown.
             if(eligibleToStart && this.status === "idle" && !this.startingTimeout && !this.awaitingMapLoad){
                 //everybody is ready, there are at least 2 players and the game hasn't been set to 'starting'
-                console.log(">> Starting game in 5 seconds");
+                if(DEBUG) console.log(">> Starting game in 5 seconds");
                 this.updateGameStatus("starting");
+                this.countdownExtensions = 0;
+                this.armStartCountdown(5000);
                 this.refresh();
-                this.startingTimeout = setTimeout(function(){
-                	this.refresh();
-                    console.log(">> Time is up. Starting game");
-                    this.startingTime = 0;
-                    this.beginGameStart();
-                    //handle timeout
-                    clearTimeout(this.startingTimeout);
-                    this.startingTimeout = null;
-                }.bind(this), 5000);
             }else if(!eligibleToStart){
                 //it might be starting, but if there are not enough players (some might exit) or if
                 // some new players hop in and they're not "ready", the game should stop.
 
                 if(this.status == "idle") return; //it's already been idled
-                console.log(">> New game status: Idle");
+                if(this.status == "start_error") return; // terminal; reset is scheduled
+                if(DEBUG) console.log(">> New game status: Idle");
                 this.updateGameStatus("idle");
                 //handle timeout
                 if(this.startingTimeout){
-                	console.log("clearing timeout!");
                 	clearTimeout(this.startingTimeout);
                 	this.startingTimeout = null;
                 }
+                this.startingTime = 0;
                 //refresh
                 this.refresh();
             }
         }else{
+            var activeClient = this.clients[this.currentPlayer];
+            if(activeClient && this.isRendererStale(activeClient) && this.turnEndTick > this.tick + 10){
+                this.turnEndTick = this.tick;
+            }
             this.checkIfTurnIsOver();
             //if only one player remains in game
             //send game over
@@ -839,8 +986,44 @@ class Slot{
         }
     }
 
+    armStartCountdown(delayMs){
+        if(this.startingTimeout) clearTimeout(this.startingTimeout);
+        // findSlot stops routing players into a room whose start is imminent.
+        this.startingTime = Date.now() + delayMs;
+        this.startingTimeout = setTimeout(function(){
+            this.startingTimeout = null;
+            if(this.status !== "starting" || this.awaitingMapLoad || this.isRunning()) return;
+            // A player who already chose this room is still loading its lobby
+            // screen; give them a short, bounded grace instead of a bot.
+            if(this.hasPendingReservations() && this.countdownExtensions < 4){
+                this.countdownExtensions++;
+                this.armStartCountdown(2000);
+                return;
+            }
+            if(DEBUG) console.log(">> Time is up. Starting game");
+            this.startingTime = 0;
+            this.refresh();
+            this.beginGameStart();
+        }.bind(this), delayMs);
+        if(this.startingTimeout.unref) this.startingTimeout.unref();
+    }
+
+    onHumanJoinedDuringCountdown(){
+        // A late joiner keeps the running countdown (no 5-4-3 restart), but
+        // gets at least two seconds to receive the roster before the start.
+        if(this.status !== "starting" || !this.startingTimeout || this.awaitingMapLoad) return;
+        if(Number(this.startingTime || 0) - Date.now() < 2000) this.armStartCountdown(2000);
+    }
+
     beginGameStart(){
-        if(this.isRunning() || this.awaitingMapLoad) return;
+        if(this.isRunning() || this.awaitingMapLoad || this.status === "start_error") return;
+        if(this.fillPolicy === "auto" && !this.botFillCompleted && this.getHumanPlayerCount() > 0 &&
+            this.getPlayerCount() < this.playerCount){
+            // Fill the open seats now, before the roster is committed by the
+            // map handshake, instead of racing a separate bot-fill timer.
+            this.seatReservations = Object.create(null);
+            this.fillWithBots(true);
+        }
         var rendererIds = this.getHumanRendererIds();
         if(!rendererIds.length){
             return this.failMapLoad("no_human_renderer");
@@ -858,7 +1041,7 @@ class Slot{
         this.sendConfirmation();
         this.startHandshakeTimeout = setTimeout(function(){
             this.startHandshakeTimeout = null;
-            this.failMapLoad("map_timeout");
+            this.handleMapLoadTimeout();
         }.bind(this), 20000);
         this.startHandshakeTimeout.unref();
     }
@@ -893,6 +1076,41 @@ class Slot{
         this.startGame();
     }
 
+    handleMapLoadTimeout(){
+        if(!this.awaitingMapLoad || this.isRunning()) return false;
+        var lateIds = Object.keys(this.mapLoadExpectedRenderers).filter(function(id){
+            return this.mapLoadExpectedRenderers[id] !== true;
+        }.bind(this));
+        var loadedHumans = Object.keys(this.mapLoadExpectedRenderers).length - lateIds.length;
+        var remaining = this.getPlayerCount() - lateIds.length;
+        var enoughHumans = this.fillPolicy === "human_only" ? loadedHumans >= 2 : loadedHumans >= 1;
+        if(!enoughHumans || (this.fillPolicy === "human_only" && remaining < 2)){
+            return this.failMapLoad("map_timeout");
+        }
+        // One slow renderer no longer fails the whole room: it is removed and
+        // the players who did load start (auto rooms backfill the seat).
+        for(var i = 0; i < lateIds.length; i++){
+            var late = this.clients[lateIds[i]];
+            delete this.mapLoadExpectedRenderers[lateIds[i]];
+            if(!late) continue;
+            console.warn("map_load_timeout_removed game=" + JSON.stringify(this.gameId) + " renderer=" + lateIds[i]);
+            if(typeof late.sendPacket === "function"){
+                late.sendPacket({ command: "game_start_failed", code: "map_timeout", map: this.mapName, loadId: this.mapLoadId });
+            }
+            delete this.clients[lateIds[i]];
+            if(late.avatar){
+                var avatarIndex = this.physicsObjects.indexOf(late.avatar);
+                if(avatarIndex >= 0) this.physicsObjects.splice(avatarIndex, 1);
+            }
+        }
+        if(this.fillPolicy === "auto" && this.getPlayerCount() < 2){
+            this.botFillCompleted = false;
+            this.fillWithBots(true);
+        }
+        this.startGameAfterMapLoad();
+        return true;
+    }
+
     failMapLoad(code){
         if(this.startHandshakeTimeout) clearTimeout(this.startHandshakeTimeout);
         this.startHandshakeTimeout = null;
@@ -905,7 +1123,27 @@ class Slot{
         console.error("game_start_failed code=" + code + " game=" + JSON.stringify(this.gameId) + " map=" + JSON.stringify(this.mapName));
         this.sendPacket({ command: "game_start_failed", code: code, map: this.mapName, loadId: this.mapLoadId });
         this.refresh();
+        this.scheduleStartErrorReset();
         return false;
+    }
+
+    scheduleStartErrorReset(){
+        // The failed generation stays terminal long enough for every client to
+        // read game_start_failed, then the room is recycled so matchmaking can
+        // reuse it instead of routing new players into a dead room.
+        if(this.startErrorResetTimer) clearTimeout(this.startErrorResetTimer);
+        this.startErrorResetTimer = setTimeout(function(){
+            this.startErrorResetTimer = null;
+            if(this.status !== "start_error") return;
+            for(var id in this.clients){
+                var client = this.clients[id];
+                if(client && !client.isBot && this.WOPW && this.WOPW.slots && client.gameId === this.gameId){
+                    client.gameId = null;
+                }
+            }
+            this.initialize();
+        }.bind(this), 3000);
+        if(this.startErrorResetTimer.unref) this.startErrorResetTimer.unref();
     }
 
     stopGameStart(){
@@ -913,10 +1151,11 @@ class Slot{
         // being removed for the Battlefield transition.  At that point a bot
         // room is already starting/running, so accepting it would reset the
         // room and begin the five-second countdown all over again.
-        if(this.isRunning() || this.awaitingMapLoad) return;
-        console.log("stopping game!");
+        if(this.isRunning() || this.awaitingMapLoad || this.status === "start_error") return;
+        if(DEBUG) console.log("stopping game!");
         clearTimeout(this.startingTimeout);
         this.startingTimeout = null;
+        this.startingTime = 0;
         this.updateGameStatus("idle");
         this.refresh();
     }
@@ -939,20 +1178,25 @@ class Slot{
 
     holdCurrentTurnThroughRespawn(client){
         if(!client || parseInt(this.currentPlayer) !== parseInt(client.player.id)) return false;
+        if(client.avatar && client.avatar.alreadyShot){
+            // The turn's action is already spent: dying to your own shot ends
+            // the turn on the shot's own deadline instead of idling the room.
+            return false;
+        }
         this.currentTurnDeathHold = {
             playerId: Number(client.player.id),
             turnEpoch: Number(this.turnEpoch),
             deathGeneration: Number(client.respawnGeneration || 0),
             firedAfterRespawn: false
         };
-        // A shot may already have shortened turnEndTick to its visual-effect
-        // deadline. Death cancels that transition: the owner receives the rest
-        // of the original turn after respawn, while the hard deadline still
-        // guarantees progress.
-        this.turnEndTick = Math.max(
-            Number(this.turnEndTick || 0),
-            Number(this.turnHardEndTick || 0)
-        );
+        // The owner gets the respawn delay plus a short window to act after
+        // returning (never the whole remaining turn, which left everybody
+        // else idle for up to 30 s). The hard deadline still bounds it.
+        var respawnWindowTicks = Math.ceil((3000 + 1500) / 10) + 800;
+        var hardEnd = Number(this.turnHardEndTick || 0);
+        if(hardEnd > 0){
+            this.turnEndTick = Math.min(hardEnd, this.tick + respawnWindowTicks);
+        }
         this.botPendingProjectile = null;
         return true;
     }
@@ -1040,7 +1284,7 @@ class Slot{
                     if(killerState.turnKills >= 2) this.awardProgressionMedal(this.clients[killerId], "two_bird_one_stone");
                 }
                 if(!this.clients[killerId].isBot){
-                    this.clients[killerId].addXP(15);
+                    this.clients[killerId].player.xp += 15;
                     this.clients[killerId].addGold(5, true);
                 }
             }
@@ -1153,8 +1397,11 @@ class Slot{
     }
 
     getBotRendererId(){
+        var now = Date.now();
         var candidates = this.getHumanRendererIds().filter(function(id){
-            return Number(this.clients[id].botAiProtocol || 0) >= 2;
+            // A silent renderer cannot report bot health or completion; hand
+            // the role to a live one instead of freezing every bot hit.
+            return Number(this.clients[id].botAiProtocol || 0) >= 2 && !this.isRendererStale(this.clients[id], now);
         }.bind(this)).sort(function(a,b){
             var protocolDifference = Number(this.clients[b].botAiProtocol || 0) - Number(this.clients[a].botAiProtocol || 0);
             return protocolDifference || Number(a) - Number(b);
@@ -1298,7 +1545,9 @@ class Slot{
         // the accepted value.
         if(reporter && !reporter.isBot) this.sendPacketE(packet, reporter);
         else this.sendPacket(packet);
-        this.sendWorldState(true);
+        // set_health already carries the change; the convergence snapshot is
+        // coalesced so a multi-hit weapon sends one, not one per hit.
+        this.scheduleWorldState();
         if(nextHp === 0) this.setPlayerDead(target.player.id, sourceId, generation);
         return { accepted: true, hp: nextHp, maxHp: state.maxHp, revision: state.revision };
     }
@@ -1395,7 +1644,16 @@ class Slot{
                 delete this.respawnAckStates[key];
                 continue;
             }
-            if(Number(state.packet.terrainRevision) !== Number(this.terrainRevision)){
+            var checkedRevision = Number(state.checkedTerrainRevision != null ? state.checkedTerrainRevision : state.packet.terrainRevision);
+            if(checkedRevision !== Number(this.terrainRevision) && !this.respawnTerrainTouched(state)){
+                // Craters elsewhere on the map do not invalidate this spawn;
+                // relocating on every terrain batch made respawns loop while
+                // a Drill or several renderers kept reporting craters.
+                state.checkedTerrainRevision = Number(this.terrainRevision);
+                state.terrainRecordCount = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0;
+                checkedRevision = state.checkedTerrainRevision;
+            }
+            if(checkedRevision !== Number(this.terrainRevision)){
                 console.warn(">> Respawn terrain changed before ACK; relocating avatar: " + key);
                 client.avatar.dead = true;
                 client.avatar.complete = true;
@@ -1419,7 +1677,7 @@ class Slot{
             if(allAcknowledged){
                 client.respawnReady = true;
                 delete this.respawnAckStates[key];
-                console.log(">> Respawn acknowledged by all renderers: " + key + " generation=" + state.packet.generation);
+                if(DEBUG) console.log(">> Respawn acknowledged by all renderers: " + key + " generation=" + state.packet.generation);
                 continue;
             }
 
@@ -1450,6 +1708,23 @@ class Slot{
         }
     }
 
+    respawnTerrainTouched(state){
+        if(!state || !state.packet || !this.field || !Array.isArray(this.field.explosionRecord)) return true;
+        var records = this.field.explosionRecord;
+        var from = Number(state.terrainRecordCount || 0);
+        if(from > records.length) return true;
+        var x = Number(state.packet.x), y = Number(state.packet.y);
+        for(var i = from; i < records.length; i++){
+            var cx = Utils.stringToInt(records[i][0]);
+            var cy = Utils.stringToInt(records[i][1]);
+            var cr = Utils.stringToInt(records[i][2]);
+            if(!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cr)) return true;
+            // Pet radius (40) plus support depth below the feet.
+            if(Math.hypot(x - cx, y - cy) < cr + 90) return true;
+        }
+        return false;
+    }
+
     acknowledgeRespawn(rendererId, id, generation, respawnToken, observedX, observedY, grounded, terrainRevision){
         // Keep accepting the old two-argument shape while v21 rolls out:
         // acknowledgeRespawn(respawnedId, generation).
@@ -1464,8 +1739,13 @@ class Slot{
         if(hasGeneration && Number(state.packet.generation) !== Number(generation)) return false;
         if(String(respawnToken || "") !== String(state.packet.respawnToken || "")) return false;
         if(grounded !== true && String(grounded).toLowerCase() !== "true") return false;
-        if(Number(terrainRevision) !== Number(state.packet.terrainRevision) ||
-            Number(terrainRevision) !== Number(this.terrainRevision)) return false;
+        var checkedRevision = Number(state.checkedTerrainRevision != null ? state.checkedTerrainRevision : state.packet.terrainRevision);
+        if(Number(terrainRevision) !== Number(state.packet.terrainRevision) && Number(terrainRevision) !== Number(this.terrainRevision)) return false;
+        if(checkedRevision !== Number(this.terrainRevision)){
+            if(this.respawnTerrainTouched(state)) return false;
+            state.checkedTerrainRevision = Number(this.terrainRevision);
+            state.terrainRecordCount = this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0;
+        }
         if(!Number.isFinite(Number(observedX)) || !Number.isFinite(Number(observedY))) return false;
         if(Math.hypot(Number(observedX) - Number(state.packet.x), Number(observedY) - Number(state.packet.y)) > 120) return false;
         var surface = this.resolveRespawnSurface(Number(observedX), Number(observedY) + 45);
@@ -1485,7 +1765,7 @@ class Slot{
             client.respawnReady = true;
             delete this.respawnAckStates[id];
         }
-        console.log(">> Respawn acknowledged: target=" + id + " renderer=" + rendererId + " generation=" + generation);
+        if(DEBUG) console.log(">> Respawn acknowledged: target=" + id + " renderer=" + rendererId + " generation=" + generation);
         return true;
     }
 
@@ -1528,7 +1808,8 @@ class Slot{
         // A valid floor is not enough if the pet would be reconstructed inside
         // an overhang or a surviving sliver of crater wall. Require a clear
         // avatar-height capsule above the selected surface.
-        for(var clearanceY = groundY - 52; clearanceY <= groundY - 12; clearanceY += 5){
+        // The capsule spans the whole pet (about 80 px), not only its middle.
+        for(var clearanceY = groundY - 80; clearanceY <= groundY - 12; clearanceY += 6){
             if(field.checkFieldCollisionPoint(x - 12, clearanceY) ||
                 field.checkFieldCollisionPoint(x, clearanceY) ||
                 field.checkFieldCollisionPoint(x + 12, clearanceY)){
@@ -1604,8 +1885,10 @@ class Slot{
 
             var craterPenalty = 0;
             var craterOverlap = false;
+            var insideCrater = false;
             explosions.forEach(function(explosion){
                 var distance = Math.hypot(x - explosion.x, y - explosion.y);
+                if(distance < explosion.r + 10) insideCrater = true;
                 if(distance < explosion.r + 90){
                     craterOverlap = true;
                     craterPenalty += (explosion.r + 90 - distance) * 20;
@@ -1634,7 +1917,8 @@ class Slot{
                 // The current terrain mask is the final authority. Explosion
                 // overlap is a ranking penalty, not proof that all lower floor
                 // in the same column disappeared.
-                safe: surface.verified && !craterOverlap
+                safe: surface.verified && !craterOverlap,
+                usable: surface.verified && !insideCrater
             });
         }.bind(this);
 
@@ -1674,6 +1958,12 @@ class Slot{
             return b.score - a.score;
         });
         var verifiedCandidates = candidates.filter(function(candidate){ return candidate.safe; });
+        if(!verifiedCandidates.length){
+            // Late in a match every surface can be near some crater. A floor
+            // that the mask verifies and that is not inside a recorded crater
+            // is still valid; refusing it left players dead indefinitely.
+            verifiedCandidates = candidates.filter(function(candidate){ return candidate.usable; });
+        }
         if(!verifiedCandidates.length) return null;
         var topCandidates = verifiedCandidates.slice(0, Math.min(5, verifiedCandidates.length));
         return topCandidates[Math.floor(respawnRandom() * topCandidates.length)];
@@ -1747,13 +2037,17 @@ class Slot{
                 nextRetryAt: Date.now() + 250,
                 warningAt: Date.now() + 5000,
                 watchdogAt: Date.now() + 10000,
-                warningLogged: false
+                warningLogged: false,
+                // Terrain the spawn was validated against; advanced when later
+                // craters are verified not to touch the spawn point.
+                checkedTerrainRevision: Number(this.terrainRevision || 0),
+                terrainRecordCount: this.field && Array.isArray(this.field.explosionRecord) ? this.field.explosionRecord.length : 0
             };
         }else{
             client.respawnReady = true;
         }
         this.sendPacket(packet);
-        console.log(">> Player respawned: " + id + " at " + client.avatar.X + "," + client.avatar.Y);
+        if(DEBUG) console.log(">> Player respawned: " + id + " at " + client.avatar.X + "," + client.avatar.Y);
         return true;
     }
 
@@ -1864,7 +2158,7 @@ class Slot{
     //### weps ###
 
     addProjectile(properties, x, y, vx, vy){
-        console.log("adding projectile! " + x + " " + y + " " + vx + " " + vy);
+        if(DEBUG) console.log("adding projectile! " + x + " " + y + " " + vx + " " + vy);
         this.physicsObjects.push(this.weapon.makeWeapon(properties, x, y, vx, vy));
     }
 
@@ -1874,7 +2168,7 @@ class Slot{
         var clientId = client && client.player && client.player.id;
         var alreadyPresent = clientId !== undefined && clientId !== null &&
             Object.prototype.hasOwnProperty.call(this.clients, clientId);
-        if(!alreadyPresent && this.isFull()){
+        if(!alreadyPresent && !this.canAdmit(clientId)){
             console.warn(
                 "game_join_rejected code=full game=" + JSON.stringify(this.gameId) +
                 " capacity=" + this.playerCount
@@ -1906,11 +2200,12 @@ class Slot{
         }
 
         this.clients[client.player.id] = client;
+        delete this.seatReservations[String(client.player.id)];
         if(client.avatar != null){
-            console.log(">> client avatar is not null. adding to physicsObjects");
+            if(DEBUG) console.log(">> client avatar is not null. adding to physicsObjects");
             this.physicsObjects.push(client.avatar);
         }
-        else console.log("!! client avatar is null");
+        else if(DEBUG) console.log("!! client avatar is null");
 
         if (this.currentPlayer == -1)
             this.currentPlayer = client.player.id;
@@ -1963,8 +2258,10 @@ class Slot{
     getBotFillDelay(now){
         now = Number.isFinite(now) ? now : Date.now();
         var firstHumanAt = this.botFillFirstHumanAt || now;
-        var lastHumanAt = this.botFillLastHumanAt || now;
-        var deadline = Math.min(firstHumanAt + 15000, lastHumanAt + 5000);
+        // A reserved (still loading) player counts as recent activity: the
+        // room waits for them instead of handing their seat to a bot.
+        var lastHumanAt = Math.max(this.botFillLastHumanAt || now, Number(this.lastReservationAt || 0));
+        var deadline = Math.min(firstHumanAt + 15000, lastHumanAt + 8000);
         return Math.max(0, deadline - now);
     }
 
@@ -1980,17 +2277,35 @@ class Slot{
         this.botFillTimer = setTimeout(function(){
             this.botFillTimer = null;
             this.botFillScheduled = false;
-            if(this.fillPolicy !== "auto" || this.isRunning() || this.botFillCompleted || this.getHumanPlayerCount() < 1) return;
+            if(this.fillPolicy !== "auto" || !this.canAccept() || this.botFillCompleted || this.getHumanPlayerCount() < 1) return;
+            // Hold the seats of players whose game socket is still connecting,
+            // but never beyond the reservation lifetime.
+            if(this.hasPendingReservations() && Date.now() < Number(this.botFillFirstHumanAt || 0) + 25000){
+                this.botFillScheduled = true;
+                this.botFillDeadline = Date.now() + 1000;
+                this.botFillTimer = setTimeout(function(){
+                    this.botFillTimer = null;
+                    this.botFillScheduled = false;
+                    this.fillWithBots();
+                }.bind(this), 1000);
+                this.botFillTimer.unref();
+                return;
+            }
             this.fillWithBots();
         }.bind(this), delay);
         this.botFillTimer.unref();
     }
 
-    fillWithBots(){
-        if(this.fillPolicy !== "auto" || this.isRunning() || this.botFillCompleted || this.getHumanPlayerCount() < 1) return;
+    fillWithBots(force){
+        if(this.fillPolicy !== "auto" || this.status === "start_error" || this.isRunning() || this.isGameOver() ||
+            (!force && this.awaitingMapLoad) || this.botFillCompleted || this.getHumanPlayerCount() < 1) return;
+        if(!force && this.hasPendingReservations() && Date.now() < Number(this.botFillFirstHumanAt || 0) + 25000 && this.botFillFirstHumanAt){
+            if(!this.botFillScheduled) this.scheduleBotFill();
+            return;
+        }
         this.clearBotFillTimer();
         this.botFillCompleted = true;
-        while(this.getPlayerCount() < this.playerCount){
+        while(this.getPlayerCount() + this.getReservedSeatCount() < this.playerCount){
             var id = 900000000 + (++this.botOrdinal);
             var bot = new BotClient(this, id, this.botOrdinal);
             this.addClient(bot);
@@ -2052,25 +2367,27 @@ class Slot{
     //### packets ###
 
     sendPacket(packet){
-        for(var key in this.clients){
-            var client = this.clients[key];
-
-            if(client){
-                if(packet.hasOwnProperty("session"))
-                    packet.session = client.gameSession;
-                 client.sendPacket(packet);
-            }
-        }
+        this.broadcastPacket(packet, null);
     }
-
     sendPacketE(packet, clientExcl){
+        this.broadcastPacket(packet, clientExcl);
+    }
+    broadcastPacket(packet, clientExcl){
+        // Session-bearing packets are personalised; everything else is
+        // serialized once and the same frame body is written to every socket.
+        var personalised = packet.hasOwnProperty("session");
+        var serialized = null;
         for(var key in this.clients){
             var client = this.clients[key];
-
-            if(client && client != clientExcl){
-                if(packet.hasOwnProperty("session"))
-                    packet.session = client.gameSession;
-                 client.sendPacket(packet);
+            if(!client || client == clientExcl) continue;
+            if(personalised){
+                packet.session = client.gameSession;
+                client.sendPacket(packet);
+            }else if(typeof client.sendSerialized === "function"){
+                if(serialized === null) serialized = JSON.stringify(packet);
+                client.sendSerialized(serialized);
+            }else{
+                client.sendPacket(packet);
             }
         }
     }
@@ -2122,6 +2439,7 @@ class Slot{
         }catch(sendError){
             console.error("game_start_rejection_delivery_failed", sendError.message);
         }
+        this.scheduleStartErrorReset();
         return false;
     }
 
@@ -2192,11 +2510,12 @@ class Slot{
 
         this.sendPacket(cmd);
         this.setNextTurn(200);
+        this.botActionNotBefore = Date.now() + 2500;
         return true;
     }
 
     isFull(){
-        return (this.getPlayerCount() >= this.playerCount);
+        return (this.getPlayerCount() + this.getReservedSeatCount() >= this.playerCount);
     }
 
     refresh(){
@@ -2219,12 +2538,23 @@ class Slot{
             var r = this.getNextPlayerId();
             if(r === -1){
                 // Every avatar can briefly be dead during a multi-kill. The
-                // scheduled respawns restore the turn ring; retry shortly.
-                this.turnEndTick = this.tick + 50;
+                // scheduled respawns restore the turn ring; retry when the
+                // earliest one is due, without another cleanup round trip.
+                var nextRespawnAt = Infinity;
+                for(var respawnKey in this.respawnDeadlines){
+                    nextRespawnAt = Math.min(nextRespawnAt, Number(this.respawnDeadlines[respawnKey]) || Infinity);
+                }
+                var waitTicks = Number.isFinite(nextRespawnAt)
+                    ? Math.max(10, Math.min(300, Math.ceil((nextRespawnAt - Date.now()) / 10) + 20))
+                    : 50;
+                this.turnEndTick = this.tick + waitTicks;
+                this.turnCleanupEpoch = Number(this.turnEpoch);
                 return;
             }
 
-            this.clients[this.currentPlayer].sendServerTick(this.tick, this.turnEndTick);
+            // Every renderer shows the same turn clock (it used to reach only
+            // the new current player while the others ran local timers).
+            this.sendServerTick();
             this.clients[this.currentPlayer].resetTurnChanges();
             var record = this.getGameRecord("changeTurn");
             this.turnEpoch++;
@@ -2438,7 +2768,7 @@ class Slot{
                     if (parseInt(pKey) < this.currentPlayer && this.isTurnEligible(this.clients[pKey])) {
                         this.currentPlayer = pKey;
                         foundPlayer = true;
-                        console.log("Found in second loop: " + pKey + " " + this.clients[pKey].player.dname);
+                        if(DEBUG) console.log("Found in second loop: " + pKey + " " + this.clients[pKey].player.dname);
                     }
                 }
             }
@@ -2446,7 +2776,7 @@ class Slot{
 
         if(!foundPlayer) return -1;
 
-        console.log("current player is " + this.currentPlayer);
+        if(DEBUG) console.log("current player is " + this.currentPlayer);
     }
 
     countPlayersAlive(){
@@ -2458,8 +2788,19 @@ class Slot{
         }).length;
     }
 
+    isRendererStale(client, now){
+        // Every live v26 renderer sends position heartbeats several times a
+        // second. A silent, half-open socket would otherwise keep receiving
+        // full-length turns until the five-minute socket timeout.
+        if(!client || client.isBot || client.connectionType !== "game") return false;
+        var last = Number(client.lastMessageTime || 0);
+        if(!(last > 0)) return false;
+        return (Number.isFinite(now) ? now : Date.now()) - last > 20000;
+    }
+
     isTurnEligible(client){
         if(!client || client.isDead()) return false;
+        if(this.isRendererStale(client)) return false;
         if(client.respawnReady !== false) return true;
 
         // Never advance onto an avatar the movie has not confirmed as living.
@@ -2517,6 +2858,64 @@ class Slot{
         return Object.keys(this.clients).length;
     }
 
+    pruneSeatReservations(now){
+        now = Number.isFinite(now) ? now : Date.now();
+        for(var id in this.seatReservations){
+            if(this.seatReservations[id] <= now || Object.prototype.hasOwnProperty.call(this.clients, id)){
+                delete this.seatReservations[id];
+            }
+        }
+    }
+
+    getReservedSeatCount(now){
+        this.pruneSeatReservations(now);
+        return Object.keys(this.seatReservations).length;
+    }
+
+    hasPendingReservations(now){
+        return this.getReservedSeatCount(now) > 0;
+    }
+
+    canAccept(){
+        // Rooms in their map-load handshake, running, finished or failed can
+        // never take a new participant; their roster is already committed.
+        return this.status !== "start_error" && !this.awaitingMapLoad &&
+            !this.isRunning() && !this.isGameOver() && !this.endingGame;
+    }
+
+    reserveSeat(playerId, ttlMs){
+        if(playerId === undefined || playerId === null || !this.canAccept()) return false;
+        var key = String(playerId);
+        var now = Date.now();
+        this.pruneSeatReservations(now);
+        if(!Object.prototype.hasOwnProperty.call(this.clients, key) &&
+            !Object.prototype.hasOwnProperty.call(this.seatReservations, key) &&
+            this.getPlayerCount() + Object.keys(this.seatReservations).length >= this.playerCount){
+            return false;
+        }
+        this.seatReservations[key] = now + (Number(ttlMs) > 0 ? Number(ttlMs) : 20000);
+        this.lastReservationAt = now;
+        // A newly committed player pushes the bot deadline out, exactly like
+        // a connected one, so a slow Ruffle load is not replaced by a bot.
+        if(this.botFillScheduled) this.scheduleBotFill();
+        return true;
+    }
+
+    releaseSeat(playerId){
+        delete this.seatReservations[String(playerId)];
+    }
+
+    canAdmit(playerId){
+        var key = playerId === undefined || playerId === null ? null : String(playerId);
+        if(key !== null && Object.prototype.hasOwnProperty.call(this.clients, key)) return true;
+        var now = Date.now();
+        this.pruneSeatReservations(now);
+        if(key !== null && Object.prototype.hasOwnProperty.call(this.seatReservations, key)){
+            return this.getPlayerCount() < this.playerCount;
+        }
+        return this.getPlayerCount() + Object.keys(this.seatReservations).length < this.playerCount;
+    }
+
     getStatusCollection(){
         var playerList = [];
         for(var key in this.clients){
@@ -2530,7 +2929,7 @@ class Slot{
         var playerList = [];
         for(var key in this.clients){
             var client = this.clients[key];
-            playerList.push(client.player);
+            playerList.push(publicPlayerRecord(client.player));
         }
         return playerList;
     }

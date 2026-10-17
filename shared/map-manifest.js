@@ -10,7 +10,22 @@ const V26_MAP_NAMES = Object.freeze([
   "Creepy Crawly",
   "Hot and Spicy",
   "Lab Rats",
-  "Big Tops"
+  "Big Tops",
+  // Re-enabled with spawn/crate zones derived from their own collision
+  // masks (scripts/derive-map-layout.js); the legacy entries had positions
+  // copied from other maps.
+  "Swamp",
+  "Haunted Mansion",
+  "Tower Tops",
+  "Pumpkin Patch"
+]);
+
+// Enabled maps with price 0 in Maps.dat. Every profile owns them, so they are
+// never shown locked; priced maps are bought in the shop.
+const V26_FREE_MAP_NAMES = Object.freeze([
+  "Critter Falls",
+  "Swamp",
+  "Haunted Mansion"
 ]);
 
 const REQUIRED_FIELDS = Object.freeze([
@@ -68,4 +83,4 @@ function isSupportedMapName(name) {
   return V26_MAP_NAMES.includes(String(name || ""));
 }
 
-module.exports = { V26_MAP_NAMES, buildMapManifest, isSupportedMapName, mapValidationError, mapAssetError };
+module.exports = { V26_MAP_NAMES, V26_FREE_MAP_NAMES, buildMapManifest, isSupportedMapName, mapValidationError, mapAssetError };

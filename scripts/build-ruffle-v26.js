@@ -329,9 +329,16 @@ function patchBotState(file) {
                }
                lastWorldStateSequence = v26WorldSequence;
                var v26WorldTerrainRevision:Number = Number(param1.terrainRevision);
-               if(v26WorldTerrainRevision > lastWorldTerrainRevision && param1.terrain is Array && param1.terrain.length > 0)
+               // terrain is either the full crater list (terrainFrom 0) or only
+               // the craters added after revision terrainFrom. A delta is
+               // applicable only when this renderer already has that base.
+               var v26WorldTerrainFrom:Number = param1.terrainFrom != null ? Number(param1.terrainFrom) : 0;
+               if(v26WorldTerrainRevision > lastWorldTerrainRevision && param1.terrain is Array && v26WorldTerrainFrom <= Math.max(0,lastWorldTerrainRevision))
                {
-                  _loc3_.field.applyServerTerrainEvents(param1.terrain as Array);
+                  if(param1.terrain.length > 0)
+                  {
+                     _loc3_.field.applyServerTerrainEvents(param1.terrain as Array);
+                  }
                   lastWorldTerrainRevision = v26WorldTerrainRevision;
                }
                var v26WorldStates:Array = param1.players as Array;
@@ -544,6 +551,50 @@ function patchAuthoritativeHumanRelay(controlsFile, timeLoopFile, commandProcess
   write(commandProcessorFile, commandProcessor);
 }
 
+// Readable text for the server's join/start failure codes instead of
+// showing players the raw protocol code.
+const JOIN_FAILURE_MESSAGES = Object.freeze({
+  full: "That room just filled up. Please try another game.",
+  running: "That game has already started. Please pick another room.",
+  not_found: "That room no longer exists.",
+  capacity: "No room is available for these settings right now. Please try again.",
+  map_unavailable: "This map is unavailable. Please choose one of the verified maps.",
+  invalid_settings: "These game settings are not available.",
+  duplicate: "A room with that name already exists.",
+  map_timeout: "The map took too long to load, so the match started without you. Please join another game.",
+  map_asset_error: "The map could not be loaded on the server. Please choose another map.",
+  map_capacity_exceeded: "The match could not start because the room was over capacity. Please join another game.",
+  spawn_assignment_failed: "The match could not start on this map. Please join another game.",
+  no_human_renderer: "The match could not start. Please join another game."
+});
+
+function joinFailureMethod() {
+  const cases = Object.entries(JOIN_FAILURE_MESSAGES)
+    .map(([code, text]) => `            case "${code}":\n               return ${JSON.stringify(text)};`)
+    .join("\n");
+  return `      public static function v26JoinFailureText(param1:*) : String
+      {
+         switch(String(param1))
+         {
+${cases}
+            default:
+               return "Unable to join the game. Please try again.";
+         }
+      }
+      `;
+}
+
+function patchLobbyMapLockLabel(file) {
+  let source = read(file);
+  source = replaceOnce(source,
+    `            _loc9_ = FontUtil.createLabel(DEFAULT_UNLOCK_TEXT + _loc4_.model.unlockableLevel,40,16777215,true,0,0,_loc4_,"font2");`,
+    `            // Maps outside the level table are bought in the shop; the
+            // legacy sentinel level (999987) was shown to players verbatim.
+            _loc9_ = FontUtil.createLabel(_loc4_.model.unlockableLevel >= 999987 ? "BUY IN SHOP" : DEFAULT_UNLOCK_TEXT + _loc4_.model.unlockableLevel,40,16777215,true,0,0,_loc4_,"font2");`,
+    "v26 lobby shop-only map label");
+  write(file, source);
+}
+
 function patchMapUnavailable(file) {
   let source = read(file);
   source = replaceOnce(source,
@@ -554,9 +605,22 @@ function patchMapUnavailable(file) {
                MainView.instance.setPageView("home",true);
                Ballistics.overlayView.alert = "This map is unavailable. Please choose one of the verified maps.";
                break;
+            case "game_start_failed":
+            case "game_start_rejected":
+               // The server could not start this room (map load timeout,
+               // capacity, spawn failure). Leave the waiting screen instead of
+               // stranding the player on it.
+               Ballistics.mainmain.leaveBattlefield();
+               MainView.instance.setPageView("home",true);
+               Ballistics.overlayView.alert = Ballistics.v26JoinFailureText(param1.code);
+               break;
             case "game_join_failed":
                Ballistics.mainmain.leaveBattlefield();`,
     "v26 unavailable map recovery");
+  source = replaceOnce(source,
+    `               Ballistics.overlayView.alert = "Sorry\\n\\nThe game connection failed please try again.";`,
+    `               Ballistics.overlayView.alert = param1.code != null ? Ballistics.v26JoinFailureText(param1.code) : "Sorry\\n\\nThe game connection failed please try again.";`,
+    "v26 readable game join failure");
   write(file, source);
 }
 
@@ -1202,9 +1266,10 @@ function patchPhysicsStability(timeLoopFile, commandProcessorFile, drillFile, ba
          }
          var _loc3_:Boolean = false;
          var v26Steps:int = 0;
-         // At 24 fps four or five 10 ms simulation steps are normal. Six
-         // allows gentle catch-up without the old 4x unbounded death spiral.
-         while(lastTime + dt <= param1 && v26Steps < 6)
+         // At 24 fps four or five 10 ms simulation steps are normal. Ten
+         // lets a slow device catch up after a 100 ms hitch without the old
+         // 4x unbounded death spiral or a visible slow-motion projectile.
+         while(lastTime + dt <= param1 && v26Steps < 10)
          {
             if(canTick())
             {
@@ -1214,10 +1279,12 @@ function patchPhysicsStability(timeLoopFile, commandProcessorFile, drillFile, ba
             lastTime += dt;
             v26Steps++;
          }
-         if(param1 - lastTime > 250)
+         if(param1 - lastTime > 600)
          {
             // Never attempt hundreds of stale physics ticks in one render
             // frame. End the currently blocking effect and resume from now.
+            // The budget tolerates ordinary GC/tab hitches on weak clients so
+            // their explosions are not cut off mid-flight.
             forceEffectCleanup("lag_budget");
             lastTime = param1;
             Controls.finishCommand({
@@ -1328,6 +1395,12 @@ function patchPhysicsStability(timeLoopFile, commandProcessorFile, drillFile, ba
             Effects.drawEffect(param3.effect2,param1,param2,_loc12_);
          }`,
     "v26 drill particle budget");
+  battlefield = replaceOnce(battlefield,
+    `         field.explode(param1,param2,_loc8_);`,
+    `         field.currentExplosionType = _loc10_;
+         field.explode(param1,param2,_loc8_);
+         field.currentExplosionType = "";`,
+    "v26 terrain events carry the weapon type");
   write(battlefieldFile, battlefield);
 }
 
@@ -1531,11 +1604,12 @@ function patchTurkiyeBranding(assetLoadViewFile, bannerViewFile) {
          v26LogoBacking.graphics.endFill();
          addChild(v26LogoBacking);
          var v26TurkiyeLogo:Loader = new Loader();
-         v26TurkiyeLogo.scaleX = 0.095;
-         v26TurkiyeLogo.scaleY = 0.095;
+         // 272x88 banner art drawn at half scale: 136x44 inside the 50px bar.
+         v26TurkiyeLogo.scaleX = 0.5;
+         v26TurkiyeLogo.scaleY = 0.5;
          v26TurkiyeLogo.x = 8;
-         v26TurkiyeLogo.y = -8;
-         v26TurkiyeLogo.load(new URLRequest("/theme/wild-ones-turkiye-logo.png"));
+         v26TurkiyeLogo.y = 3;
+         v26TurkiyeLogo.load(new URLRequest("/theme/wild-ones-turkiye-banner.png"));
          addChild(v26TurkiyeLogo);
          if(Ballistics.totalPlayersOnline > 1)`,
     "v26 in-movie TURKIYE logo");
@@ -2352,6 +2426,7 @@ function patchLegacyAnimationClock(file) {
          var _loc3_:int = 0;
          var _loc4_:DisplayObject = null;
          var _loc5_:MovieClip = null;
+         var _loc6_:int = 0;
          if(param1 == null)
          {
             return;
@@ -2363,10 +2438,17 @@ function patchLegacyAnimationClock(file) {
             _loc5_ = _loc4_ as MovieClip;
             if(Boolean(_loc5_) && _loc5_ != assets && _loc5_.totalFrames > 1)
             {
+               // gotoAndStop rebuilds the clip's display list in Ruffle even
+               // when the frame is unchanged; most nested parts already sit on
+               // the target frame, so only move the ones that differ.
+               _loc6_ = (param2 - 1) % _loc5_.totalFrames + 1;
                _loc5_.stop();
-               _loc5_.gotoAndStop((param2 - 1) % _loc5_.totalFrames + 1);
+               if(_loc5_.currentFrame != _loc6_)
+               {
+                  _loc5_.gotoAndStop(_loc6_);
+               }
             }
-            if(_loc4_ is DisplayObjectContainer)
+            if(_loc4_ is DisplayObjectContainer && DisplayObjectContainer(_loc4_).numChildren > 0)
             {
                syncLegacyChildren(_loc4_ as DisplayObjectContainer,param2);
             }
@@ -2484,12 +2566,11 @@ function patchPetPowerIconRuntime(file) {
                "accorn":"acornschild",
                "accorns":"acornschild",
                "acornschild":"acornschild",
-               "spit":"fireball",
-               "howl":"mortar",
-               "tailwhip":"crocodilewhip",
-               "punchsmack":"punch",
-               "headbutt":"punch",
-               "tailspin":"punch"
+               // spit, howl, punchsmack, headbutt and tailspin ship their own
+               // *_icon symbols. Only these two powers have no icon of their
+               // own: use the art of the behaviour they share.
+               "tailwhip":"punch",
+               "fly":"jetpack"
             };
             var v26IconType:String = v26IconAliases[param1] != null ? String(v26IconAliases[param1]) : param1;
             icon = Ballistics.assets.makeLibraryDisplayObject(v26IconType + "_icon") as Sprite;
@@ -2531,6 +2612,10 @@ function patchLeaderboardPlayerDetails(file) {
 
 function patchLobbyPurchaseResponses(file) {
   let source = read(file);
+  source = replaceOnce(source,
+    `      public static var mainHolderFullMask:Shape;`,
+    `${joinFailureMethod()}public static var mainHolderFullMask:Shape;`,
+    "v26 join failure text helper");
   source = replaceOnce(source,
     `            case "accessoryPurchase":
                overlayView.setAccessoryPurchasePopup(param1.type);
@@ -2582,10 +2667,24 @@ function patchLobbyPurchaseResponses(file) {
     `            case "room_settings":
                // Informational acknowledgement of the resolved Any/capacity
                // choices. The following join packet owns the actual room view.
+               if(param1.capacityAdjusted === true)
+               {
+                  overlayView.setAlertPopup("This map holds at most " + String(param1.playerCount) + " players, so the room was set to " + String(param1.playerCount) + ".");
+               }
+               break;
+            case "buy_unlock_return":
+            case "buy_stat_point_return":
+            case "local_offer_return":
+               // Successes already arrive as a profile update; refusals used to
+               // be silent, which looked like an unresponsive button.
+               if(param1.value === false && param1.reason != null)
+               {
+                  overlayView.setAlertPopup(param1.reason == "cooldown" ? "This offer is not available again yet." : (param1.reason == "not_enough_treats" ? "You do not have enough treats." : "You do not have enough currency."));
+               }
                break;
             case "game_join_failed":
                QuickPlayLobby.instance.onShowGameRoomLobby();
-               overlayView.setAlertPopup("Unable to join game: " + String(command.code));
+               overlayView.setAlertPopup(v26JoinFailureText(command.code));
                break;
             case "join":
                trace("join command Ballistics.as");`,
@@ -2733,6 +2832,10 @@ function patchFieldRenderer(file) {
       private var terrainBatchSequence:int = 0;
       
       private var lastTerrainFlushTick:int = -100;
+      
+      private var foregroundDirty:Boolean = false;
+      
+      public var currentExplosionType:String = "";
       `,
     "v26 terrain synchronization guard");
   source = replaceOnce(source,
@@ -2810,17 +2913,39 @@ function patchFieldRenderer(file) {
          }
          this.explosionRecord.push([MathUtil.number2String(X),MathUtil.number2String(Y),MathUtil.number2String(R)]);
          this.clearExplosionCircle(this.bitmapData,X,Y,R);
+         // Carve the visible layer in the same tick as the collision mask so
+         // a crater never looks solid while avatars already fall through it.
+         this.clearExplosionCircle(this.foregroundBitmapData,X,Y,R);
          if(this.applyingSynchronization)
          {
-            this.clearExplosionCircle(this.foregroundBitmapData,X,Y,R);
             this.foregroundBitmap.bitmapData = this.foregroundBitmapData;
             return;
          }
-         this.pendingTerrainEvents.push([X,Y,R]);
+         this.foregroundDirty = true;
+         var v26WakeAvatar:Avatar = null;
+         if(Boolean(this.main) && Boolean(this.main.avatarList))
+         {
+            for each(v26WakeAvatar in this.main.avatarList)
+            {
+               if(Boolean(v26WakeAvatar))
+               {
+                  v26WakeAvatar.wakeAfterTerrainChange(X,Y,R);
+               }
+            }
+         }
+         // The weapon type lets the server reproduce the explosion's
+         // knockback on the bots it simulates.
+         this.pendingTerrainEvents.push([X,Y,R,this.currentExplosionType]);
       }
       
       public function flushTerrainEvents(force:Boolean = false) : void
       {
+         if(this.foregroundDirty)
+         {
+            // One display refresh per rendered frame, however many craters.
+            this.foregroundDirty = false;
+            this.foregroundBitmap.bitmapData = this.foregroundBitmapData;
+         }
          if(this.pendingTerrainEvents.length == 0)
          {
             return;
@@ -2834,28 +2959,6 @@ function patchFieldRenderer(file) {
          }
          var count:int = Math.min(64,this.pendingTerrainEvents.length);
          var batch:Array = this.pendingTerrainEvents.splice(0,count);
-         var event:Array = null;
-         var v26TerrainAvatar:Avatar = null;
-         this.foregroundBitmapData.lock();
-         for each(event in batch)
-         {
-            this.clearExplosionCircle(this.foregroundBitmapData,Number(event[0]),Number(event[1]),Number(event[2]),false);
-         }
-         this.foregroundBitmapData.unlock();
-         this.foregroundBitmap.bitmapData = this.foregroundBitmapData;
-         if(Boolean(this.main) && Boolean(this.main.avatarList))
-         {
-            for each(v26TerrainAvatar in this.main.avatarList)
-            {
-               if(Boolean(v26TerrainAvatar))
-               {
-                  for each(event in batch)
-                  {
-                     v26TerrainAvatar.wakeAfterTerrainChange(Number(event[0]),Number(event[1]),Number(event[2]));
-                  }
-               }
-            }
-         }
          this.lastTerrainFlushTick = currentTick;
          if(Boolean(Ballistics.gameConnection) && Boolean(this.main) && this.main.isMultiPlayerMode)
          {
@@ -3190,6 +3293,7 @@ function main() {
   const miniPet = path.join(importDir, "com", "playdom", "ballistics", "avatar", "MiniPet.as");
   const animalGraphics = path.join(importDir, "com", "playdom", "ballistics", "avatar", "AnimalGraphics.as");
   const assetManager = path.join(importDir, "com", "playdom", "asset", "AssetManager.as");
+  const lobbyMapsConveyor = path.join(importDir, "com", "playdom", "ballistics", "lobby", "LobbyMapsConveyor.as");
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "shared", "ApplicationLauncher.as"), applicationLauncher);
   copy(path.join(scriptsDir, "Player.as"), player);
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "Avatar.as"), avatar);
@@ -3237,6 +3341,7 @@ function main() {
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "MiniPet.as"), miniPet);
   copy(path.join(scriptsDir, "com", "playdom", "ballistics", "avatar", "AnimalGraphics.as"), animalGraphics);
   copy(path.join(scriptsDir, "com", "playdom", "asset", "AssetManager.as"), assetManager);
+  copy(path.join(scriptsDir, "com", "playdom", "ballistics", "lobby", "LobbyMapsConveyor.as"), lobbyMapsConveyor);
   const field = path.join(importDir, "com", "playdom", "ballistics", "game", "Field.as");
   copy(path.join(root, "swf-patches", "v26", "com", "playdom", "ballistics", "game", "Field.as"), field);
   patchMaps(applicationLauncher);
@@ -3245,6 +3350,7 @@ function main() {
   patchBotState(commandProcessor);
   patchAuthoritativeHumanRelay(controls, timeLoop, commandProcessor);
   patchMapUnavailable(commandProcessor);
+  patchLobbyMapLockLabel(lobbyMapsConveyor);
   patchServerHealth(avatar);
   patchBotHealthProtocol(battlefield);
   patchRespawnAuthority(battlefield, avatar, timeLoop);

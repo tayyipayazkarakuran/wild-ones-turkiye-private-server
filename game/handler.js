@@ -26,6 +26,7 @@ const {
 } = require("../shared/accessory-bonuses.js");
 
 var DEBUG = process.env.DEBUG === 'true' || false;
+const GAME_INDEPENDENT_COMMANDS = new Set(["logIn", "ping", "start_server_connect", "give_medal"]);
 
 
 class Handler{
@@ -307,6 +308,10 @@ class Handler{
         //console.log("PACKET HANDLING: " + packet + "\n");
         client.lastMessageTime = Date.now();
         if(!client.loggedIn && packet.command !== "start_server_connect" && packet.command !== "ping") return;
+        // Match commands can arrive after the room was recycled (game over,
+        // failed start). Dropping them is correct; dereferencing the missing
+        // game used to throw and disconnect the player.
+        if(!GAME_INDEPENDENT_COMMANDS.has(packet.command) && typeof client.getGame === "function" && !client.getGame()) return;
         switch(packet.command){
             case "logIn":
                 return this.handleLogin(client, packet);
@@ -960,6 +965,7 @@ class Handler{
 
         this.sendResolvedRoomSettings(client, mapDetails);
         client.gameId  = gameId;
+        this.WOPW.reserveSeat(gameId, client.player && client.player.id);
         await client.sendJoinGame();
         return true;
     }
@@ -981,22 +987,27 @@ class Handler{
                 // packet sent over the same validated connection.
                 client.loggedIn = true;
 
-                if(client.getGame().isFull()){
+                var joinGame = client.getGame();
+                var acceptsPlayers = typeof joinGame.canAccept === "function" ? joinGame.canAccept() : true;
+                var hasSeat = typeof joinGame.canAdmit === "function" ? joinGame.canAdmit(client.player.id) : !joinGame.isFull();
+                if(!acceptsPlayers || !hasSeat){
                     // The session token is scoped to the lobby-selected game.
                     // Redirecting after authentication admitted the socket to a
-                    // different room without a token for that room.
+                    // different room without a token for that room. A room
+                    // already loading its map has a committed roster.
                     client.sendPacket({
                         command: "game_join_failed",
-                        code: "full"
+                        code: acceptsPlayers ? "full" : "running"
                     });
                     return;
                 }
 
-                client.getGame().addClient(client);
+                if(joinGame.addClient(client) === false) return;
                 client.sendGamePlayers();
                 client.sendToGame(client.player);
                 client.updateGame();
-                client.getGame().stopGameStart();
+                if(typeof joinGame.onHumanJoinedDuringCountdown === "function") joinGame.onHumanJoinedDuringCountdown();
+                else joinGame.stopGameStart();
             }
         } catch(e){
             throw e;
@@ -1076,7 +1087,7 @@ class Handler{
 
     handleOnReady(client, data){
         client.getGame().updatePlayerStatus(client.player.id, "ready");
-        console.log("client.player.status " + client.player.status);
+        if(DEBUG) console.log("client.player.status " + client.player.status);
         client.getGame().checkGame();
     }
 
@@ -1211,7 +1222,7 @@ class Handler{
             var pending = game.botPendingProjectile;
             if(!pending || Number(pending.id) !== botId || Number(pending.turnEpoch) !== Number(game.turnEpoch)) return;
         }
-        console.log(">> Rendered bot turn complete: " + botId);
+        if(DEBUG) console.log(">> Rendered bot turn complete: " + botId);
         game.nativeBotTimeouts = 0;
         this.handleTurnComplete(bot, { id: botId, command: "turn_complete" });
     }
@@ -1288,7 +1299,7 @@ class Handler{
             data.grounded,
             data.terrainRevision
         );
-        console.log(">> respawn_ready: reporter=" + client.player.id + "; target=" + data.id + "; generation=" + data.generation + "; accepted=" + accepted);
+        if(DEBUG) console.log(">> respawn_ready: reporter=" + client.player.id + "; target=" + data.id + "; generation=" + data.generation + "; accepted=" + accepted);
     }
 
     handleWorldFall(client, data){
@@ -1317,7 +1328,10 @@ class Handler{
         var game = client.getGame();
         if(!game || !game.isRunning() || client.isBot || !game.field) return false;
         var turnEpoch = Number(data.turnEpoch);
-        if(!Number.isFinite(turnEpoch) || turnEpoch < Number(game.turnEpoch) - 1 || turnEpoch > Number(game.turnEpoch)) return false;
+        // Long effects (Drill, timed weapons) keep carving after the turn has
+        // advanced. Craters are idempotent, so accept a short window of turns
+        // instead of losing them on the server forever.
+        if(!Number.isFinite(turnEpoch) || turnEpoch < Number(game.turnEpoch) - 3 || turnEpoch > Number(game.turnEpoch)) return false;
         if(!Array.isArray(data.explosions) || data.explosions.length === 0 || data.explosions.length > 64) return false;
 
         var batchSeq = Number(data.batchSeq);
@@ -1337,23 +1351,32 @@ class Handler{
             var y = Number(explosion[1]);
             var r = Number(explosion[2]);
             if(!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(r)) continue;
-            records.push([
+            var record = [
                 Utils.intToString(x),
                 Utils.intToString(y),
                 Utils.intToString(r)
-            ]);
+            ];
+            // v26 renderers append the weapon type so the server can apply
+            // the same knockback to the bots it simulates.
+            var weaponType = typeof explosion[3] === "string" ? explosion[3] : "";
+            if(weaponType && this.WOPW && this.WOPW.weaponsObj && this.WOPW.weaponsObj[weaponType]) record.push(weaponType);
+            records.push(record);
         }
-        var accepted = game.field.mergeExplosionRecords(records);
-        // Normal five-Hz coalescing is sufficient. A forced snapshot for
-        // every Drill crater used to create a packet storm during the most
-        // expensive Ruffle frame.
+        var accepted;
+        if(typeof game.applyTerrainMutation === "function"){
+            accepted = game.applyTerrainMutation(records);
+        }else{
+            accepted = game.field.mergeExplosionRecords(records);
+            if(accepted > 0){
+                game.terrainRevision = Number(game.terrainRevision || 0) + 1;
+                game.lastTerrainMutationAt = Date.now();
+                if(typeof game.reconcileBotsAfterTerrainMutation === "function") game.reconcileBotsAfterTerrainMutation();
+                if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+                if(typeof game.sendBotState === "function") game.sendBotState(false);
+            }
+        }
         if(accepted > 0){
-            game.terrainRevision = Number(game.terrainRevision || 0) + 1;
-            game.lastTerrainMutationAt = Date.now();
-            if(typeof game.reconcileBotsAfterTerrainMutation === "function") game.reconcileBotsAfterTerrainMutation();
-            if(typeof game.sendWorldState === "function") game.sendWorldState(true);
-            if(typeof game.sendBotState === "function") game.sendBotState(false);
-            console.log(
+            if(DEBUG) console.log(
                 "terrain_batch game=" + JSON.stringify(game.gameId) +
                 " renderer=" + client.player.id +
                 " epoch=" + turnEpoch +
@@ -1495,7 +1518,9 @@ class Handler{
         if(data.ammo_type === "kame") resolveDelayTicks = 1100;
         else if(behaviorType === "mirv") resolveDelayTicks = 1200;
         else if(data.ammo_type === "drill") resolveDelayTicks = 650;
-        else resolveDelayTicks = Math.max(250, Math.min(750, resolveDelayTicks));
+        // This is only the fallback for a shooter whose turn_complete never
+        // arrives; a 2 s floor keeps quick weapons from idling the room.
+        else resolveDelayTicks = Math.max(200, Math.min(750, resolveDelayTicks));
 
         var isBasicWeapon = ["mortar", "punch", "bone", "walk", "superjump", "climb", "dig", "empty"].includes(data.ammo_type);
 
@@ -1507,6 +1532,7 @@ class Handler{
             }
         }
         if(typeof game.markCurrentTurnRespawnShot === "function") game.markCurrentTurnRespawnShot(client);
+        var shotReward = false;
         if(properties.timeAfter == null){ //harmful
             client.avatar.alreadyShot = true;
             if(DEBUG){
@@ -1515,12 +1541,9 @@ class Handler{
             game.setNextTurnFN(resolveDelayTicks);
         }else if(properties.timeAfter > 0){ //harmful
             client.avatar.alreadyShot = true;
-            console.log("Next turn in: " + resolveDelayTicks);
+            if(DEBUG) console.log("Next turn in: " + resolveDelayTicks);
             game.setNextTurnFN(resolveDelayTicks);
-
-
-            client.addXP(Math.round(Math.random() * 10) + 1);
-            client.addGold(Math.round(Math.random() * 5) + 1, true);
+            shotReward = true;
         }
 
         if(!isBasicWeapon && !isPetWeapon && data.crate != "true" && !client.player.unlimitedInventory) client.player.userWeaponsOwned[data.ammo_type] -= 1;
@@ -1545,9 +1568,6 @@ class Handler{
             game.sendServerTick();
         }
 
-        client.updatePlayerData();
-        client.sendUpdate();
-
         // The human owner already rendered this exact snapshot locally. Relay
         // it only to the other renderers; bot shots still go to everybody.
         data.id = client.player.id;
@@ -1568,9 +1588,19 @@ class Handler{
         data.power = Math.max(0.08, Math.min(1,
             Number.isFinite(Number(data.power)) ? Number(data.power) : Number(client.avatar.fpDistance || 0.08)
         ));
-        if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+        // Relay first: the other renderers are waiting on this packet, while
+        // the profile/reward bookkeeping below is only for the shooter.
         if(isAiCommand) game.sendPacket(data);
         else game.sendPacketE(data, client);
+        if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+
+        if(shotReward){
+            // One combined profile update instead of three full player packets.
+            client.player.xp += Math.round(Math.random() * 10) + 1;
+            client.addGold(Math.round(Math.random() * 5) + 1, false);
+        }
+        client.updatePlayerData();
+        client.sendUpdate();
     }
 
     handleDamage(client, data){
@@ -1594,6 +1624,9 @@ class Handler{
         // Applying this older accumulated-damage packet as well would race the
         // exact state and can subtract the same hit twice.
         if(typeof game.getBotHealthReporterId === "function" && game.getBotHealthReporterId() != null) return;
+        // An exact health_state for this bot already covered this turn; the
+        // accumulated attacker damage would subtract the same hit again.
+        if(Number(victim.lastHealthStateEpoch) === Number(game.turnEpoch)) return;
         if(typeof game.initializeHealth !== "function" || typeof game.applyHealthState !== "function"){
             victim.avatar.hp = Math.max(0, Number(victim.avatar.hp || 0) - damage);
             if(victim.avatar.hp <= 0) game.setPlayerDead(victimId, attackerId, data.generation);
@@ -1608,19 +1641,20 @@ class Handler{
         var game = client.getGame();
         if(!game || !game.isRunning()) return;
         // Explosions and fall damage can resolve on the renderer just as a
-        // turn advances. Accept only the current (or immediately preceding)
-        // turn while the life generation and sequence still provide replay
-        // protection; rejecting that boundary packet was restoring real
-        // players to the server's older, full-health value on their next turn.
+        // turn advances, and a slow victim renderer can trail the shooter by
+        // more than one turn. The life generation and per-reporter sequence
+        // provide replay protection, so accept a short window of recent turns;
+        // rejecting those packets restored players to a stale full health.
         var reportedTurnEpoch = Number(data.turnEpoch);
-        if(!Number.isFinite(reportedTurnEpoch) || reportedTurnEpoch < Number(game.turnEpoch) - 1 || reportedTurnEpoch > Number(game.turnEpoch)) return;
+        if(!Number.isFinite(reportedTurnEpoch) || reportedTurnEpoch < Number(game.turnEpoch) - 3 || reportedTurnEpoch > Number(game.turnEpoch)) return;
         var targetId = parseInt(data.targetId != null ? data.targetId : data.id);
         var target = game.clients[targetId];
         if(!target) return;
         var raw = data.hpAfter != null ? data.hpAfter : data.hp;
         var hpAfter = typeof raw === "string" && raw.length === 16 ? Utils.stringToInt(raw) : Number(raw);
         if(!Number.isFinite(hpAfter)) return;
-        game.applyHealthState(client, targetId, hpAfter, data.generation, data.seq, data.reason, data.sourceId, { enforceReporter: true });
+        var applied = game.applyHealthState(client, targetId, hpAfter, data.generation, data.seq, data.reason, data.sourceId, { enforceReporter: true });
+        if(applied && applied.accepted && target.isBot) target.lastHealthStateEpoch = Number(game.turnEpoch);
     }
 
     handleRetractRope(client, data){
@@ -1682,8 +1716,10 @@ class Handler{
 
     handleRequestSynch(client, data){
         //console.log("client who requested synch: " + client.player.id);
-        console.log("client whos data was req: " + data.pid);
-        client.sendPacket(client.getGame().clients[data.pid].getSynchCommand());
+        if(DEBUG) console.log("client whos data was req: " + data.pid);
+        var target = client.getGame().clients[data.pid];
+        if(!target || typeof target.getSynchCommand !== "function") return;
+        client.sendPacket(target.getSynchCommand());
 
     }
 
@@ -2479,6 +2515,7 @@ class Handler{
 
         this.sendResolvedRoomSettings(client, mapDetails);
         client.gameId  = gameId;
+        this.WOPW.reserveSeat(gameId, client.player && client.player.id);
         await client.sendJoinGame();
         return true;
     }
@@ -2494,11 +2531,12 @@ class Handler{
             this.sendGameJoinFailed(client, "not_found");
             return false;
         }
-        if(gameRef.isRunning() || gameRef.isGameOver()){
+        if(gameRef.isRunning() || gameRef.isGameOver() || (typeof gameRef.canAccept === "function" && !gameRef.canAccept())){
             this.sendGameJoinFailed(client, "running");
             return false;
         }
-        if(gameRef.isFull()){
+        var joinerId = client.player && client.player.id;
+        if(typeof gameRef.canAdmit === "function" ? !gameRef.canAdmit(joinerId) : gameRef.isFull()){
             this.sendGameJoinFailed(client, "full");
             return false;
         }
@@ -2519,6 +2557,7 @@ class Handler{
             wi: gameRef.useWind
         });
         client.gameId = room.key;
+        this.WOPW.reserveSeat(room.key, joinerId);
         await client.sendJoinGame();
         return true;
     }
@@ -2527,7 +2566,8 @@ class Handler{
         var game = client.getGame();
         if(!game || !data || !data.timeLoop || !Array.isArray(data.avatarList)) return;
         if(data.field && Array.isArray(data.field.explosions) && game.field){
-            game.field.mergeExplosionRecords(data.field.explosions);
+            if(typeof game.applyTerrainMutation === "function") game.applyTerrainMutation(data.field.explosions);
+            else game.field.mergeExplosionRecords(data.field.explosions);
         }
 
         // Process unaffected avatars and terrain even when one entry crosses a
