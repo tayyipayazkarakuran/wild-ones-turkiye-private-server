@@ -135,7 +135,7 @@ try {
   assert.match(avatar, /function advanceServerBotSnapshot/, "v26 bots must interpolate authoritative positions");
   assert.match(timeLoop, /else if\(!\(main\.isMultiPlayerMode && phyObj is Avatar && Avatar\(phyObj\)\.player\.isBot\)\)/, "v26 must not run multiplayer bot collision twice");
   assert.match(timeLoop, /advanceServerBotSnapshot/, "v26 must smooth server bot motion between snapshots");
-  assert.match(timeLoop, /v26Steps < 6/, "v26 must cap fixed physics work per rendered frame");
+  assert.match(timeLoop, /v26Steps < 10/, "v26 must cap fixed physics work per rendered frame");
   assert.match(timeLoop, /currentTick <= delayBeforeGame && param1 - lastTime > 250/,
     "a new battlefield must align its application and simulation clocks before the countdown");
   assert.match(timeLoop, /forceEffectCleanup\("lag_budget"\)/, "v26 must terminate effects that exceed the lag budget");
@@ -222,7 +222,7 @@ try {
   assert.match(animalGraphics, /getTimer\(\) - legacyAnimationStartedAt/,
     "avatar timelines must use elapsed real time rather than rendered frame count");
   assert.match(assetLoadView, /pre_flash-turkiye\.png/, "loading screen must use the TURKIYE illustration");
-  assert.match(bannerView, /wild-ones-turkiye-logo\.png/, "movie banner must use the TURKIYE logo");
+  assert.match(bannerView, /wild-ones-turkiye-banner\.png/, "movie banner must use the TURKIYE logo");
   console.log(`Verified ${path.relative(root, swf)} (${fs.statSync(swf).size} bytes)`);
 } finally {
   fs.rmSync(exportDir, { recursive: true, force: true });

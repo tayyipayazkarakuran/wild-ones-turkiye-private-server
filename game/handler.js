@@ -1076,7 +1076,7 @@ class Handler{
 
     handleOnReady(client, data){
         client.getGame().updatePlayerStatus(client.player.id, "ready");
-        console.log("client.player.status " + client.player.status);
+        if(DEBUG) console.log("client.player.status " + client.player.status);
         client.getGame().checkGame();
     }
 
@@ -1211,7 +1211,7 @@ class Handler{
             var pending = game.botPendingProjectile;
             if(!pending || Number(pending.id) !== botId || Number(pending.turnEpoch) !== Number(game.turnEpoch)) return;
         }
-        console.log(">> Rendered bot turn complete: " + botId);
+        if(DEBUG) console.log(">> Rendered bot turn complete: " + botId);
         game.nativeBotTimeouts = 0;
         this.handleTurnComplete(bot, { id: botId, command: "turn_complete" });
     }
@@ -1288,7 +1288,7 @@ class Handler{
             data.grounded,
             data.terrainRevision
         );
-        console.log(">> respawn_ready: reporter=" + client.player.id + "; target=" + data.id + "; generation=" + data.generation + "; accepted=" + accepted);
+        if(DEBUG) console.log(">> respawn_ready: reporter=" + client.player.id + "; target=" + data.id + "; generation=" + data.generation + "; accepted=" + accepted);
     }
 
     handleWorldFall(client, data){
@@ -1353,7 +1353,7 @@ class Handler{
             if(typeof game.reconcileBotsAfterTerrainMutation === "function") game.reconcileBotsAfterTerrainMutation();
             if(typeof game.sendWorldState === "function") game.sendWorldState(true);
             if(typeof game.sendBotState === "function") game.sendBotState(false);
-            console.log(
+            if(DEBUG) console.log(
                 "terrain_batch game=" + JSON.stringify(game.gameId) +
                 " renderer=" + client.player.id +
                 " epoch=" + turnEpoch +
@@ -1507,6 +1507,7 @@ class Handler{
             }
         }
         if(typeof game.markCurrentTurnRespawnShot === "function") game.markCurrentTurnRespawnShot(client);
+        var shotReward = false;
         if(properties.timeAfter == null){ //harmful
             client.avatar.alreadyShot = true;
             if(DEBUG){
@@ -1515,12 +1516,9 @@ class Handler{
             game.setNextTurnFN(resolveDelayTicks);
         }else if(properties.timeAfter > 0){ //harmful
             client.avatar.alreadyShot = true;
-            console.log("Next turn in: " + resolveDelayTicks);
+            if(DEBUG) console.log("Next turn in: " + resolveDelayTicks);
             game.setNextTurnFN(resolveDelayTicks);
-
-
-            client.addXP(Math.round(Math.random() * 10) + 1);
-            client.addGold(Math.round(Math.random() * 5) + 1, true);
+            shotReward = true;
         }
 
         if(!isBasicWeapon && !isPetWeapon && data.crate != "true" && !client.player.unlimitedInventory) client.player.userWeaponsOwned[data.ammo_type] -= 1;
@@ -1545,9 +1543,6 @@ class Handler{
             game.sendServerTick();
         }
 
-        client.updatePlayerData();
-        client.sendUpdate();
-
         // The human owner already rendered this exact snapshot locally. Relay
         // it only to the other renderers; bot shots still go to everybody.
         data.id = client.player.id;
@@ -1568,9 +1563,19 @@ class Handler{
         data.power = Math.max(0.08, Math.min(1,
             Number.isFinite(Number(data.power)) ? Number(data.power) : Number(client.avatar.fpDistance || 0.08)
         ));
-        if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+        // Relay first: the other renderers are waiting on this packet, while
+        // the profile/reward bookkeeping below is only for the shooter.
         if(isAiCommand) game.sendPacket(data);
         else game.sendPacketE(data, client);
+        if(typeof game.sendWorldState === "function") game.sendWorldState(true);
+
+        if(shotReward){
+            // One combined profile update instead of three full player packets.
+            client.player.xp += Math.round(Math.random() * 10) + 1;
+            client.addGold(Math.round(Math.random() * 5) + 1, false);
+        }
+        client.updatePlayerData();
+        client.sendUpdate();
     }
 
     handleDamage(client, data){
@@ -1682,7 +1687,7 @@ class Handler{
 
     handleRequestSynch(client, data){
         //console.log("client who requested synch: " + client.player.id);
-        console.log("client whos data was req: " + data.pid);
+        if(DEBUG) console.log("client whos data was req: " + data.pid);
         client.sendPacket(client.getGame().clients[data.pid].getSynchCommand());
 
     }

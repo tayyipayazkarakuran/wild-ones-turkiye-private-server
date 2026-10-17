@@ -63,7 +63,9 @@ package com.playdom.ballistics.game
          mouseEnabled = false;
          this.isHighQuality = Common.STAGE.quality != "LOW";
          blendMode = BlendMode.NORMAL;
-         cacheAsBitmap = true;
+         // The terrain is already a Bitmap; caching the container as a second
+         // full-map surface only doubled memory and re-rasterised every crater.
+         cacheAsBitmap = false;
          this.main = Battlefield.main;
          this.main.game.addEventListener(Event.CHANGE,this.onGame,false,0,true);
       }

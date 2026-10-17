@@ -73,6 +73,24 @@ function normalizedAllowedMaps(value) {
   return maps;
 }
 
+// Server bookkeeping that the movie never reads. `transactions` grows with
+// every purchase, so sending it made each profile packet larger over time.
+const SERVER_ONLY_FIELDS = ["transactions", "passwordHash", "serialNumber", "_id", "gkey", "progressionDirty"];
+// Fields that describe only the owner's private account state. Room rosters
+// (startGame/changeTurn playerlist) go to every opponent and must omit them.
+const PRIVATE_FIELDS = ["snum", "collections", "promos", "mysteryGift", "idleGift", "combos", "hotkeys",
+  "cookingFoods", "eatenFoods", "weaponUnlocks", "online"];
+
+function publicPlayerRecord(player) {
+  const source = player && typeof player === "object" ? player : {};
+  const record = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (SERVER_ONLY_FIELDS.includes(key) || PRIVATE_FIELDS.includes(key)) continue;
+    record[key] = value;
+  }
+  return record;
+}
+
 // The database retains readable canonical fields.  This adapter is the sole
 // place that derives compact Flash fields, so purchases made after login are
 // immediately visible without polluting persisted documents with socket data.
@@ -80,6 +98,9 @@ function playerWireDto(player, overrides = {}) {
   const source = player && typeof player === "object" ? player : {};
   normalizeProfileState(source);
   const dto = Object.assign({}, source, overrides);
+  for (const field of SERVER_ONLY_FIELDS) {
+    if (!Object.hasOwn(overrides, field)) delete dto[field];
+  }
   dto.time = Date.now();
   dto.statPoints = asNonNegativeInt(source.statPoints, 50);
   dto.st = dto.statPoints;
@@ -143,4 +164,4 @@ function playerWireDto(player, overrides = {}) {
   return dto;
 }
 
-module.exports = { playerWireDto, asNonNegativeInt, normalizedMedals, normalizedWeapons, normalizedWeaponEquip, normalizedAllowedMaps, flashWeaponInventory, FLASH_WEAPON_ALIASES };
+module.exports = { playerWireDto, publicPlayerRecord, SERVER_ONLY_FIELDS, PRIVATE_FIELDS, asNonNegativeInt, normalizedMedals, normalizedWeapons, normalizedWeaponEquip, normalizedAllowedMaps, flashWeaponInventory, FLASH_WEAPON_ALIASES };

@@ -1,5 +1,7 @@
 "use strict";
 
+var DEBUG = process.env.DEBUG === 'true';
+
 const MAX_BOT_TURN_MS = 7500;
 const BOT_WEAPONS_LIST = [
     "mortar", "grenade", "minigun", "marshmallow", "chainsaw", "multishot",
@@ -349,7 +351,7 @@ class BotController {
 
     sendMove(bot, direction) {
         const packet = { id: bot.player.id, command: direction > 0 ? "move_right" : "move_left" };
-        console.log(">> Server bot move: " + bot.player.id + "; direction=" + (direction > 0 ? "right" : "left"));
+        if(DEBUG) console.log(">> Server bot move: " + bot.player.id + "; direction=" + (direction > 0 ? "right" : "left"));
         if (direction > 0) this.slot.WOPW.packetHandler.handleMoveRight(bot, packet);
         else this.slot.WOPW.packetHandler.handleMoveLeft(bot, packet);
     }
@@ -555,7 +557,7 @@ class BotController {
                 value: String(finalPlan.angle),
                 power: String(clamp(Number(finalPlan.power || 1), 0.08, 1))
             });
-            console.log(">> Server bot action: " + bot.player.id + "; weapon=" + state.weapon);
+            if(DEBUG) console.log(">> Server bot action: " + bot.player.id + "; weapon=" + state.weapon);
             this.slot.WOPW.packetHandler.handleProjectile(bot, { id: bot.player.id, command: "projectile", ammo_type: state.weapon });
             state.fired = true; state.phase = "waiting"; return;
         }

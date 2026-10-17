@@ -29,7 +29,7 @@ const result = {
   },
   ruffle: {
     version: String(ruffle.version || "unknown"),
-    presentationFps: 30,
+    presentationFps: 24,
     legacyAnimationFps: 24
   }
 };

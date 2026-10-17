@@ -276,6 +276,11 @@ class WOPW{
                 obj = obj.newObject;
             });
 
+            // Turn, shot and health packets are tiny; without TCP_NODELAY each
+            // write can sit behind a delayed ACK on the bridge connection.
+            socket.setNoDelay(true);
+            // Detect half-open bridge connections long before the idle timeout.
+            socket.setKeepAlive(true, 10000);
             socket.setTimeout(5 * 60 * 1000);
             socket.on('data', function (data) {
                 try {

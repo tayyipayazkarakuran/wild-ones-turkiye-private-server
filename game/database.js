@@ -95,7 +95,8 @@ class Database {
       : { dnameCanonical: 1, id: 1 };
     const [results, tableSize, me] = await Promise.all([
       users.find({}, { projection }).sort(sort).skip(start - 1).limit(limit).toArray(),
-      users.countDocuments({}),
+      // Metadata count: an exact scan of every profile is not needed for paging.
+      typeof users.estimatedDocumentCount === 'function' ? users.estimatedDocumentCount() : users.countDocuments({}),
       users.findOne({ id: currentUserId }, { projection })
     ]);
 
@@ -314,7 +315,9 @@ class Database {
     const query = { tokenHash, expiresAt: { $gt: new Date() } };
     if(gameId) query.gameId = gameId;
     const session = await db.collection('sessions').findOne(query);
-    if(session) await db.collection('sessions').updateOne({ _id: session._id }, { $set: { lastUsedAt: new Date() } });
+    // Bookkeeping only; login must not wait for this write.
+    if(session) db.collection('sessions').updateOne({ _id: session._id }, { $set: { lastUsedAt: new Date() } })
+      .catch((error) => console.error('session_touch_failed', error.message));
     return session;
   }
 

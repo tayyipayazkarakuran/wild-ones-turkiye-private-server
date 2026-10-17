@@ -5,7 +5,8 @@ var Utils = require('../helpers/utils.js'),
 	playerWireCompatibility = playerCompat.playerWireCompatibility,
 	progression = require('../../shared/progression.js'),
 	ensureProgression = progression.ensureProgression,
-	recordActivePetStat = progression.recordActivePetStat;
+	recordActivePetStat = progression.recordActivePetStat,
+	publicPlayerRecord = require('../../shared/player-wire.js').publicPlayerRecord;
 
 function GameClient(clientRef) {
 	/* Events */
@@ -208,7 +209,7 @@ GameClient.prototype = {
 		for(var usrKey in users){
 			var el = users[usrKey];
 			if(el.player.id != this.player.id){
-				this.sendPacket(el.player);
+				this.sendPacket(publicPlayerRecord(el.player));
 			}
 		}
 	},
@@ -295,24 +296,26 @@ GameClient.prototype = {
 
 	// ### socket helpers ###
 	sendPacket : function(packet){
-		packet = JSON.stringify(packet);
+		this.sendSerialized(JSON.stringify(packet));
+	},
 
+	// Broadcasts serialize once in Slot and hand every recipient the same string.
+	sendSerialized : function(packet){
 		var len = Buffer.byteLength(packet, 'utf8');
+		if(len > 999999){
+			// The movie's framing has a fixed six-digit length prefix.
+			console.error("packet_too_large bytes=" + len + " player=" + (this.player && this.player.id));
+			return;
+		}
 		len = ("000000" + len).slice(-6);
-		//console.log("sending packet size: " + len + " " + packet);
-
 
 		if(!this.initialized){
 			this.initialized = true;
-			packet = len + packet;
-			packet = this.newPacketHeader + packet;
-			//console.log(">> sending first packet ");
-			this.write(packet);
+			this.write(this.newPacketHeader + len + packet);
 			return;
 		}
 
-		packet = len + packet;
-		this.write(packet);
+		this.write(len + packet);
 	},
 
 	write : function(str){

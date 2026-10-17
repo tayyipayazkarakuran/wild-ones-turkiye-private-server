@@ -9,6 +9,7 @@ var BotController = require('./bot.controller.js');
 var Progression = require('../shared/progression.js');
 var Levels = require('../shared/levels.js');
 var calculateAccessoryBonuses = require('../shared/accessory-bonuses.js').calculateAccessoryBonuses;
+var publicPlayerRecord = require('../shared/player-wire.js').publicPlayerRecord;
 
 
 var DEBUG = process.env.DEBUG === 'true' || false;
@@ -722,7 +723,7 @@ class Slot{
                     turnEpoch: this.turnEpoch,
                     reason: "turn_deadline"
                 });
-                console.warn(
+                if(DEBUG) console.warn(
                     "turn_effect_cleanup game=" + JSON.stringify(this.gameId) +
                     " epoch=" + this.turnEpoch +
                     " player=" + this.currentPlayer
@@ -1040,7 +1041,7 @@ class Slot{
                     if(killerState.turnKills >= 2) this.awardProgressionMedal(this.clients[killerId], "two_bird_one_stone");
                 }
                 if(!this.clients[killerId].isBot){
-                    this.clients[killerId].addXP(15);
+                    this.clients[killerId].player.xp += 15;
                     this.clients[killerId].addGold(5, true);
                 }
             }
@@ -1419,7 +1420,7 @@ class Slot{
             if(allAcknowledged){
                 client.respawnReady = true;
                 delete this.respawnAckStates[key];
-                console.log(">> Respawn acknowledged by all renderers: " + key + " generation=" + state.packet.generation);
+                if(DEBUG) console.log(">> Respawn acknowledged by all renderers: " + key + " generation=" + state.packet.generation);
                 continue;
             }
 
@@ -1485,7 +1486,7 @@ class Slot{
             client.respawnReady = true;
             delete this.respawnAckStates[id];
         }
-        console.log(">> Respawn acknowledged: target=" + id + " renderer=" + rendererId + " generation=" + generation);
+        if(DEBUG) console.log(">> Respawn acknowledged: target=" + id + " renderer=" + rendererId + " generation=" + generation);
         return true;
     }
 
@@ -1753,7 +1754,7 @@ class Slot{
             client.respawnReady = true;
         }
         this.sendPacket(packet);
-        console.log(">> Player respawned: " + id + " at " + client.avatar.X + "," + client.avatar.Y);
+        if(DEBUG) console.log(">> Player respawned: " + id + " at " + client.avatar.X + "," + client.avatar.Y);
         return true;
     }
 
@@ -1864,7 +1865,7 @@ class Slot{
     //### weps ###
 
     addProjectile(properties, x, y, vx, vy){
-        console.log("adding projectile! " + x + " " + y + " " + vx + " " + vy);
+        if(DEBUG) console.log("adding projectile! " + x + " " + y + " " + vx + " " + vy);
         this.physicsObjects.push(this.weapon.makeWeapon(properties, x, y, vx, vy));
     }
 
@@ -1907,10 +1908,10 @@ class Slot{
 
         this.clients[client.player.id] = client;
         if(client.avatar != null){
-            console.log(">> client avatar is not null. adding to physicsObjects");
+            if(DEBUG) console.log(">> client avatar is not null. adding to physicsObjects");
             this.physicsObjects.push(client.avatar);
         }
-        else console.log("!! client avatar is null");
+        else if(DEBUG) console.log("!! client avatar is null");
 
         if (this.currentPlayer == -1)
             this.currentPlayer = client.player.id;
@@ -2052,25 +2053,27 @@ class Slot{
     //### packets ###
 
     sendPacket(packet){
-        for(var key in this.clients){
-            var client = this.clients[key];
-
-            if(client){
-                if(packet.hasOwnProperty("session"))
-                    packet.session = client.gameSession;
-                 client.sendPacket(packet);
-            }
-        }
+        this.broadcastPacket(packet, null);
     }
-
     sendPacketE(packet, clientExcl){
+        this.broadcastPacket(packet, clientExcl);
+    }
+    broadcastPacket(packet, clientExcl){
+        // Session-bearing packets are personalised; everything else is
+        // serialized once and the same frame body is written to every socket.
+        var personalised = packet.hasOwnProperty("session");
+        var serialized = null;
         for(var key in this.clients){
             var client = this.clients[key];
-
-            if(client && client != clientExcl){
-                if(packet.hasOwnProperty("session"))
-                    packet.session = client.gameSession;
-                 client.sendPacket(packet);
+            if(!client || client == clientExcl) continue;
+            if(personalised){
+                packet.session = client.gameSession;
+                client.sendPacket(packet);
+            }else if(typeof client.sendSerialized === "function"){
+                if(serialized === null) serialized = JSON.stringify(packet);
+                client.sendSerialized(serialized);
+            }else{
+                client.sendPacket(packet);
             }
         }
     }
@@ -2438,7 +2441,7 @@ class Slot{
                     if (parseInt(pKey) < this.currentPlayer && this.isTurnEligible(this.clients[pKey])) {
                         this.currentPlayer = pKey;
                         foundPlayer = true;
-                        console.log("Found in second loop: " + pKey + " " + this.clients[pKey].player.dname);
+                        if(DEBUG) console.log("Found in second loop: " + pKey + " " + this.clients[pKey].player.dname);
                     }
                 }
             }
@@ -2446,7 +2449,7 @@ class Slot{
 
         if(!foundPlayer) return -1;
 
-        console.log("current player is " + this.currentPlayer);
+        if(DEBUG) console.log("current player is " + this.currentPlayer);
     }
 
     countPlayersAlive(){
@@ -2530,7 +2533,7 @@ class Slot{
         var playerList = [];
         for(var key in this.clients){
             var client = this.clients[key];
-            playerList.push(client.player);
+            playerList.push(publicPlayerRecord(client.player));
         }
         return playerList;
     }

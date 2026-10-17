@@ -35,7 +35,7 @@ This is a test environment. Accounts, balance and progression may change while c
 ## Highlights
 
 - Original Wild Ones v26 SWF client running in Ruffle
-- 30 FPS presentation with the authored animation timing preserved
+- 24 FPS presentation matching the authored animation timing
 - Same-origin WebSocket-to-TCP bridge for browser compatibility
 - Persistent MongoDB accounts, inventory, pets and match statistics
 - Paged leaderboards with wins, kills, level and player details

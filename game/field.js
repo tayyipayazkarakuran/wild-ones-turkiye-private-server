@@ -3,6 +3,23 @@ var fs = require('fs');
 var path = require('path');
 var Utils = require('./helpers/utils.js');
 
+var DEBUG = process.env.DEBUG === 'true';
+// Decoded, pristine masks shared by every room in this process.
+var decodedMasks = new Map();
+
+function decodeMask(maskPath){
+    var mtimeMs = fs.statSync(maskPath).mtimeMs;
+    var cached = decodedMasks.get(maskPath);
+    if(cached && cached.mtimeMs === mtimeMs) return cached.promise;
+    var promise = Jimp.read(maskPath);
+    decodedMasks.set(maskPath, { mtimeMs: mtimeMs, promise: promise });
+    promise.catch(function() {
+        var current = decodedMasks.get(maskPath);
+        if(current && current.promise === promise) decodedMasks.delete(maskPath);
+    });
+    return promise;
+}
+
 function Field(slot){
     this.flag = "kt";
     this.slot = slot;
@@ -22,12 +39,22 @@ Field.prototype = {
         var imagesBase = process.env.IMAGES_DIR || path.join(__dirname, '..', 'web', 'images');
         var maskPath = path.resolve(imagesBase, map.mask);
         if(!maskPath.startsWith(path.resolve(imagesBase) + path.sep) || !fs.existsSync(maskPath)) throw new Error("Missing terrain mask: " + map.mask);
+        // Every human renderer acknowledges map_loaded. The room's carved copy
+        // is already current after the first one, so later acks are free.
+        if(this.bitmapData && this.loadedMaskPath === maskPath) return Promise.resolve(this.bitmapData);
+        if(this.loadingMask && this.loadingMaskPath === maskPath) return this.loadingMask;
         var self = this;
-        return Jimp.read(maskPath).then(function(image) {
+        this.loadingMaskPath = maskPath;
+        this.loadingMask = decodeMask(maskPath).then(function(source) {
+            // Each room carves its own craters, so it needs a private copy.
+            // Cloning is a memcpy; decoding the PNG/GIF in pure JS is the
+            // expensive part and happens once per mask per process.
+            var image = source.clone();
             self.bitmapData = image;
+            self.loadedMaskPath = maskPath;
             self.width = image.width;
             self.height = image.height;
-            console.log("Loaded terrain mask: " + map.mask);
+            if(DEBUG) console.log("Loaded terrain mask: " + map.mask);
             if(self.explosionRecord.length > 0){
                 for(var k = 0; k < self.explosionRecord.length; k++){
                     var rec = self.explosionRecord[k];
@@ -43,7 +70,13 @@ Field.prototype = {
         }).catch(function(err) {
             console.error("mask_error", err.message);
             throw err;
+        }).finally(function() {
+            if(self.loadingMaskPath === maskPath){
+                self.loadingMask = null;
+                self.loadingMaskPath = null;
+            }
         });
+        return this.loadingMask;
     },
 
     checkFieldCollisionPoint: function(x, y){

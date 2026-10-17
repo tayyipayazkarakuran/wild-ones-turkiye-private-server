@@ -14,6 +14,6 @@ assert.match(info.buildId, /^v26-\d{8}T\d{6}Z-[0-9a-f]{8}$/);
 assert.equal(info.swf.sha256, sha256(swf), "build metadata must identify the shipped game SWF");
 assert.equal(info.swf.bytes, fs.statSync(swf).size);
 assert.equal(Object.hasOwn(info, "turkiyeAccessories"), false);
-assert.equal(info.ruffle.presentationFps, 30);
+assert.equal(info.ruffle.presentationFps, 24);
 assert.equal(info.ruffle.legacyAnimationFps, 24);
 console.log(`Verified build metadata ${info.buildId}`);
